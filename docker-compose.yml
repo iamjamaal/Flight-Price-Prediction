@@ -44,7 +44,7 @@ services:
       --NotebookApp.token=''
 
   # ---------------------------------------------------------------------------
-  # Flask/Streamlit prediction API (Stretch Challenge)
+  # Flask REST API (Stretch Challenge)
   # ---------------------------------------------------------------------------
   api:
     build:
@@ -63,6 +63,24 @@ services:
       - notebook
     profiles:
       - api
+
+  # ---------------------------------------------------------------------------
+  # Streamlit Web App (Stretch Challenge)
+  # ---------------------------------------------------------------------------
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flight-fare-streamlit
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+    command: ["streamlit", "run", "app/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    profiles:
+      - streamlit
 
   # ---------------------------------------------------------------------------
   # Airflow — PostgreSQL metadata database
