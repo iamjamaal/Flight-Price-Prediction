@@ -46,7 +46,8 @@ Flight-Price-Prediction/
 ├── dags/
 │   └── flight_fare_pipeline.py # Airflow DAG definition
 ├── app/
-│   └── app.py                  # Flask REST API (stretch challenge)
+│   ├── app.py                  # Flask REST API (stretch challenge)
+│   └── streamlit_app.py        # Streamlit web app (stretch challenge)
 ├── models/                     # Serialized trained models (.joblib)
 ├── reports/
 │   └── figures/                # Saved charts and plots
@@ -120,19 +121,45 @@ Open your browser at **http://localhost:8888** — no token required.
 
 ---
 
-## Optional: Flask Prediction API (Stretch)
+## Optional: Streamlit Web App (Stretch)
 
-After the Airflow pipeline has produced a trained model:
+After the Airflow pipeline has produced a trained model, launch the interactive
+Streamlit web application:
+
+```bash
+docker compose --profile streamlit up streamlit
+```
+
+Open your browser at **http://localhost:8501** to access the app.
+
+**Features:**
+- Interactive flight details form
+- Real-time fare predictions
+- KPI dashboard with airline and seasonal insights
+- Model performance metrics
+
+To run locally without Docker:
+```bash
+streamlit run app/streamlit_app.py
+```
+
+---
+
+## Optional: Flask REST API (Stretch)
+
+For programmatic access, use the Flask REST API:
+
 ```bash
 docker compose --profile api up api
 ```
+
 The REST API will be available at **http://localhost:5000**.
 
 Test it:
 ```bash
 curl -X POST http://localhost:5000/predict \
   -H "Content-Type: application/json" \
-  -d '{"airline":"Biman","source":"Dhaka","destination":"Chittagong","date":"2026-03-15"}'
+  -d '{"airline":"Biman Bangladesh Airlines","source":"DAC","destination":"CGP","date":"2026-03-15"}'
 ```
 
 ---
@@ -234,7 +261,7 @@ step-by-step guide including troubleshooting.
 - Docker & Docker Compose
 - Apache Airflow 2.8 (pipeline orchestration & scheduled retraining)
 - PostgreSQL 15 (Airflow metadata backend)
-- Flask (REST API)
+- Flask (REST API) | Streamlit (Web App)
 
 ---
 
