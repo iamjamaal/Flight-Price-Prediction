@@ -25,7 +25,7 @@ def _save(fig, filename: str | None):
     if filename:
         path = FIGURE_DIR / filename
         fig.savefig(path, dpi=150, bbox_inches="tight")
-        print(f"Saved → {path}")
+        print(f"Saved -> {path}")
 
 
 # ── EDA Visualizations ──────────────────────────────────────────────────────

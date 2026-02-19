@@ -31,7 +31,7 @@ def create_date_features(df: pd.DataFrame, date_col: str = "Date") -> pd.DataFra
     pd.DataFrame
     """
     if date_col not in df.columns:
-        print(f"Column '{date_col}' not found — skipping date features.")
+        print(f"Column '{date_col}' not found - skipping date features.")
         return df
 
     dt = pd.to_datetime(df[date_col], errors="coerce")
@@ -84,7 +84,7 @@ def encode_categoricals(
 
     if method == "onehot":
         df = pd.get_dummies(df, columns=columns, drop_first=True, dtype=int)
-        print(f"One-hot encoded: {columns}  →  {df.shape[1]} total columns")
+        print(f"One-hot encoded: {columns}  ->  {df.shape[1]} total columns")
     elif method == "label":
         for col in columns:
             le = LabelEncoder()
@@ -205,8 +205,8 @@ def save_training_columns(columns: list[str], path: str | Path) -> None:
     """Write the ordered list of training feature names to a JSON file."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(columns))
-    print(f"Saved {len(columns)} training column names → {path}")
+    path.write_text(json.dumps(columns), encoding="utf-8")
+    print(f"Saved {len(columns)} training column names -> {path}")
 
 
 def load_training_columns(path: str | Path = "data/processed/train_columns.json") -> list[str]:
@@ -217,7 +217,7 @@ def load_training_columns(path: str | Path = "data/processed/train_columns.json"
             f"Training columns file not found at {path}. "
             "Run the preprocessing notebook (02_*) first."
         )
-    return json.loads(path.read_text())
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def align_features(df: pd.DataFrame, training_columns: list[str]) -> pd.DataFrame:
@@ -242,8 +242,8 @@ def save_scaler(scaler: StandardScaler, columns: list[str], path: str | Path = S
     path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(scaler, path)
     cols_path = path.with_suffix(".columns.json")
-    cols_path.write_text(json.dumps(columns))
-    print(f"Saved scaler → {path}  (columns: {columns})")
+    cols_path.write_text(json.dumps(columns), encoding="utf-8")
+    print(f"Saved scaler -> {path}  (columns: {columns})")
 
 
 def load_scaler(path: str | Path = SCALER_PATH) -> tuple[StandardScaler, list[str]]:
@@ -256,5 +256,5 @@ def load_scaler(path: str | Path = SCALER_PATH) -> tuple[StandardScaler, list[st
         )
     scaler = joblib.load(path)
     cols_path = path.with_suffix(".columns.json")
-    columns = json.loads(cols_path.read_text())
+    columns = json.loads(cols_path.read_text(encoding="utf-8"))
     return scaler, columns

@@ -135,7 +135,7 @@ def save_model(model, path: str | Path) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, path)
-    print(f"Model saved → {path}")
+    print(f"Model saved -> {path}")
 
 
 def load_model(path: str | Path):
@@ -144,5 +144,5 @@ def load_model(path: str | Path):
     if not path.exists():
         raise FileNotFoundError(f"No model file at {path}")
     model = joblib.load(path)
-    print(f"Model loaded ← {path}")
+    print(f"Model loaded <- {path}")
     return model

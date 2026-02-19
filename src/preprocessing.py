@@ -176,7 +176,7 @@ def fix_invalid_entries(df: pd.DataFrame) -> pd.DataFrame:
                 df = df[~neg_mask]
                 print(f"  {col}: removed {n_neg} rows with negative values")
 
-    print(f"Rows: {initial_len:,} → {len(df):,} (removed {initial_len - len(df):,})")
+    print(f"Rows: {initial_len:,} -> {len(df):,} (removed {initial_len - len(df):,})")
     return df.reset_index(drop=True)
 
 
@@ -201,14 +201,14 @@ def validate_dtypes(df: pd.DataFrame) -> pd.DataFrame:
     for col in fare_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
-            print(f"  {col} → float64")
+            print(f"  {col} -> float64")
 
     # Date column
     date_cols = [c for c in df.columns if "date" in c.lower()]
     for col in date_cols:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
-            print(f"  {col} → datetime64")
+            print(f"  {col} -> datetime64")
 
     # Categorical columns
     cat_candidates = (
@@ -218,6 +218,6 @@ def validate_dtypes(df: pd.DataFrame) -> pd.DataFrame:
     cat_cols = [c for c in cat_candidates if c in df.columns]
     for col in cat_cols:
         df[col] = df[col].astype("category")
-        print(f"  {col} → category")
+        print(f"  {col} -> category")
 
     return df
