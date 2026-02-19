@@ -211,7 +211,7 @@ def train_baseline_model(**context):
     """Train a Linear Regression baseline and persist metrics."""
     import matplotlib.pyplot as plt
     from src.models import train_model, save_model
-    from src.evaluation import print_metrics
+    from src.evaluation import evaluate_model, print_metrics
     from src.visualization import plot_actual_vs_predicted, plot_residuals
 
     _ensure_dirs()
@@ -223,16 +223,16 @@ def train_baseline_model(**context):
     y_test = pd.read_csv(DATA_PROCESSED / "y_test.csv").squeeze()
 
     model = train_model("linear_regression", X_train, y_train)
-    metrics = _eval_bdt(model, X_test, y_test)
+    metrics = evaluate_model(model, X_test, y_test)
     print_metrics(metrics)
 
     plot_actual_vs_predicted(
-        np.expm1(y_test), metrics["predictions"],
+        y_test, metrics["predictions"],
         save_as="baseline_actual_vs_predicted.png",
     )
     plt.close("all")
     plot_residuals(
-        np.expm1(y_test), metrics["predictions"],
+        y_test, metrics["predictions"],
         save_as="baseline_residuals.png",
     )
     plt.close("all")
@@ -262,6 +262,7 @@ def train_advanced_models(**context):
     from sklearn.metrics import r2_score
     from src.models import train_model, tune_model, save_model
     from src.evaluation import (
+        evaluate_model,
         print_metrics,
         cross_validate_model,
         build_comparison_table,
@@ -284,26 +285,26 @@ def train_advanced_models(**context):
     results = {}
     for name in model_names:
         m = train_model(name, X_train, y_train)
-        metrics = _eval_bdt(m, X_test, y_test)
+        metrics = evaluate_model(m, X_test, y_test)
         print_metrics(metrics)
         trained[name] = m
         results[name] = metrics
 
     try:
         xgb = train_model("xgboost", X_train, y_train)
-        results["xgboost"] = _eval_bdt(xgb, X_test, y_test)
+        results["xgboost"] = evaluate_model(xgb, X_test, y_test)
         trained["xgboost"] = xgb
     except Exception as exc:
         logger.warning("XGBoost skipped: %s", exc)
 
     # --- Hyperparameter tuning ---
     best_rf = tune_model("random_forest", X_train, y_train, cv=3, n_iter=10)
-    results["random_forest_tuned"] = _eval_bdt(best_rf, X_test, y_test)
+    results["random_forest_tuned"] = evaluate_model(best_rf, X_test, y_test)
     trained["random_forest_tuned"] = best_rf
 
     if "xgboost" in trained:
         best_xgb = tune_model("xgboost", X_train, y_train, cv=3, n_iter=10)
-        results["xgboost_tuned"] = _eval_bdt(best_xgb, X_test, y_test)
+        results["xgboost_tuned"] = evaluate_model(best_xgb, X_test, y_test)
         trained["xgboost_tuned"] = best_xgb
 
     # --- Cross-validation for top models ---
