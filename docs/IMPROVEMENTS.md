@@ -172,6 +172,31 @@ real outputs in the `.ipynb` files.
 
 ---
 
+## 8. Log-Transform Target Variable (Accuracy)
+
+### Problem
+After fixing data leakage, the MAE was ~28,000 BDT (~40% of mean fare).
+Flight fares are right-skewed — most are domestic (5,000–50,000 BDT) but
+a long tail of international fares reaches 115,000+ BDT. Training on raw
+BDT values over-penalizes errors on expensive routes.
+
+### Fix
+**File:** `src/pipeline.py` — `clean_and_preprocess()`
+
+Apply `np.log1p(Total Fare)` before splitting. All models train in log
+space. A new helper `_eval_bdt()` inverse-transforms predictions via
+`np.expm1` before computing metrics, so MAE/RMSE are reported in BDT.
+
+```python
+df_model["Total Fare"] = np.log1p(df_model["Total Fare"])
+```
+
+**Expected impact:** Reduced MAE/RMSE for mid-range fares. The model
+optimizes on a more uniform loss landscape, improving predictions across
+the full fare range.
+
+---
+
 ## Execution Status
 
 | # | Fix | Status |
@@ -183,10 +208,11 @@ real outputs in the `.ipynb` files.
 | 5 | Lasso convergence — increase max_iter to 50,000 | **Done** (`src/models.py`) |
 | 6 | Add artifacts to .gitignore | **Done** (`.gitignore`) |
 | 7 | Notebook interpretation — fill in findings | **Done** (notebooks 03–06) |
+| 8 | Log-transform target variable | **Done** (`src/pipeline.py`) |
 
 ### Remaining Steps
 
 1. Rebuild the Airflow Docker image: `docker compose --profile airflow build --no-cache`
-2. Re-trigger the DAG to produce leakage-free artifacts
+2. Re-trigger the DAG to produce log-transform artifacts
 3. Run notebooks 03–06 in Jupyter to generate visible cell outputs
 4. Commit and push

@@ -33,7 +33,7 @@ def _get_xgboost():
 MODEL_REGISTRY = {
     "linear_regression": lambda: LinearRegression(),
     "ridge": lambda: Ridge(alpha=1.0),
-    "lasso": lambda: Lasso(alpha=1.0, max_iter=50_000),
+    "lasso": lambda: Lasso(alpha=0.001, max_iter=50_000),
     "decision_tree": lambda: DecisionTreeRegressor(random_state=42),
     "random_forest": lambda: RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=1),
     "gradient_boosting": lambda: GradientBoostingRegressor(n_estimators=100, random_state=42),

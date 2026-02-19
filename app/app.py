@@ -1,17 +1,17 @@
 """
 app.py
 ======
-Flask REST API for flight fare prediction (Stretch Challenge — Phase 7).
+Flask REST API for flight fare prediction (Stretch Challenge — Phase 8).
 
 Endpoints:
-    POST /predict  — Accept flight details as JSON, return predicted fare.
+    POST /predict  — Accept flight details as JSON, return predicted fare in BDT.
     GET  /health   — Simple health check.
 
 Usage:
-    docker-compose --profile api up api
+    docker compose --profile api up api
     curl -X POST http://localhost:5000/predict \
          -H "Content-Type: application/json" \
-         -d '{"airline":"Biman","source":"Dhaka","destination":"Chittagong","date":"2026-03-15"}'
+         -d '{"airline":"Biman Bangladesh Airlines","source":"DAC","destination":"CGP","date":"2026-03-15"}'
 """
 
 import sys
@@ -19,6 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import numpy as np
 import pandas as pd
 from flask import Flask, request, jsonify
 
@@ -87,8 +88,13 @@ def predict():
             "Source": data["source"],
             "Destination": data["destination"],
             "Date": data["date"],
-            "Base Fare": data.get("base_fare", 0),
-            "Tax & Surcharge": data.get("tax_surcharge", 0),
+            "Stopovers": data.get("stopovers", "Non-stop"),
+            "Aircraft Type": data.get("aircraft_type", "Boeing 737"),
+            "Class": data.get("class", "Economy"),
+            "Booking Source": data.get("booking_source", "Online Website"),
+            "Duration": data.get("duration", 2.0),
+            "DaysBeforeDeparture": data.get("days_before_departure", 30),
+            "Seasonality": data.get("seasonality", "Regular"),
         }])
 
         row = create_date_features(row)
@@ -105,9 +111,10 @@ def predict():
         row = align_features(row, get_training_columns())
 
         m = get_model()
-        prediction = m.predict(row)[0]
+        pred_log = m.predict(row)[0]
+        prediction = float(np.expm1(pred_log))
 
-        return jsonify({"predicted_fare": round(float(prediction), 2)})
+        return jsonify({"predicted_fare_bdt": round(max(prediction, 0), 2)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

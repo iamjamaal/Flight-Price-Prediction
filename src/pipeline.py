@@ -47,6 +47,22 @@ def _configure_viz():
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _eval_bdt(model, X_test, y_test_log):
+    """Predict in log space, inverse-transform, and return BDT-scale metrics."""
+    from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+    preds_log = model.predict(X_test)
+    y_bdt = np.expm1(y_test_log)
+    preds_bdt = np.expm1(preds_log)
+    preds_bdt = np.maximum(preds_bdt, 0)
+    return {
+        "r2": r2_score(y_bdt, preds_bdt),
+        "mae": mean_absolute_error(y_bdt, preds_bdt),
+        "rmse": np.sqrt(mean_squared_error(y_bdt, preds_bdt)),
+        "predictions": preds_bdt,
+    }
+
+
 # ── Phase 1 ──────────────────────────────────────────────────────────────────
 
 def load_and_validate(**context):
@@ -100,6 +116,9 @@ def clean_and_preprocess(**context):
     leak_cols = ["Base Fare", "Tax & Surcharge"]
     df_model = df.drop(columns=[c for c in leak_cols if c in df.columns])
     logger.info("Dropped leakage columns: %s", leak_cols)
+
+    df_model["Total Fare"] = np.log1p(df_model["Total Fare"])
+    logger.info("Applied log1p transform to Total Fare (skew reduction)")
 
     df_encoded = encode_categoricals(df_model.copy())
     df_scaled, scaler = scale_numericals(df_encoded.copy())
@@ -192,7 +211,7 @@ def train_baseline_model(**context):
     """Train a Linear Regression baseline and persist metrics."""
     import matplotlib.pyplot as plt
     from src.models import train_model, save_model
-    from src.evaluation import evaluate_model, print_metrics
+    from src.evaluation import print_metrics
     from src.visualization import plot_actual_vs_predicted, plot_residuals
 
     _ensure_dirs()
@@ -204,16 +223,16 @@ def train_baseline_model(**context):
     y_test = pd.read_csv(DATA_PROCESSED / "y_test.csv").squeeze()
 
     model = train_model("linear_regression", X_train, y_train)
-    metrics = evaluate_model(model, X_test, y_test)
+    metrics = _eval_bdt(model, X_test, y_test)
     print_metrics(metrics)
 
     plot_actual_vs_predicted(
-        y_test, metrics["predictions"],
+        np.expm1(y_test), metrics["predictions"],
         save_as="baseline_actual_vs_predicted.png",
     )
     plt.close("all")
     plot_residuals(
-        y_test, metrics["predictions"],
+        np.expm1(y_test), metrics["predictions"],
         save_as="baseline_residuals.png",
     )
     plt.close("all")
@@ -243,7 +262,6 @@ def train_advanced_models(**context):
     from sklearn.metrics import r2_score
     from src.models import train_model, tune_model, save_model
     from src.evaluation import (
-        evaluate_model,
         print_metrics,
         cross_validate_model,
         build_comparison_table,
@@ -266,26 +284,26 @@ def train_advanced_models(**context):
     results = {}
     for name in model_names:
         m = train_model(name, X_train, y_train)
-        metrics = evaluate_model(m, X_test, y_test)
+        metrics = _eval_bdt(m, X_test, y_test)
         print_metrics(metrics)
         trained[name] = m
         results[name] = metrics
 
     try:
         xgb = train_model("xgboost", X_train, y_train)
-        results["xgboost"] = evaluate_model(xgb, X_test, y_test)
+        results["xgboost"] = _eval_bdt(xgb, X_test, y_test)
         trained["xgboost"] = xgb
     except Exception as exc:
         logger.warning("XGBoost skipped: %s", exc)
 
     # --- Hyperparameter tuning ---
     best_rf = tune_model("random_forest", X_train, y_train, cv=3, n_iter=10)
-    results["random_forest_tuned"] = evaluate_model(best_rf, X_test, y_test)
+    results["random_forest_tuned"] = _eval_bdt(best_rf, X_test, y_test)
     trained["random_forest_tuned"] = best_rf
 
     if "xgboost" in trained:
         best_xgb = tune_model("xgboost", X_train, y_train, cv=3, n_iter=10)
-        results["xgboost_tuned"] = evaluate_model(best_xgb, X_test, y_test)
+        results["xgboost_tuned"] = _eval_bdt(best_xgb, X_test, y_test)
         trained["xgboost_tuned"] = best_xgb
 
     # --- Cross-validation for top models ---
@@ -297,15 +315,15 @@ def train_advanced_models(**context):
     comparison = build_comparison_table(results)
     comparison.to_csv(DATA_PROCESSED / "model_comparison.csv", index=False)
 
-    # --- Bias-variance tradeoff plot ---
-    alphas = [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
+    # --- Bias-variance tradeoff plot (log-space friendly alpha range) ---
+    alphas = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
     ridge_tr, ridge_te = [], []
     lasso_tr, lasso_te = [], []
     for a in alphas:
         r = Ridge(alpha=a).fit(X_train, y_train)
         ridge_tr.append(r2_score(y_train, r.predict(X_train)))
         ridge_te.append(r2_score(y_test, r.predict(X_test)))
-        la = Lasso(alpha=a, max_iter=10_000).fit(X_train, y_train)
+        la = Lasso(alpha=a, max_iter=50_000).fit(X_train, y_train)
         lasso_tr.append(r2_score(y_train, la.predict(X_train)))
         lasso_te.append(r2_score(y_test, la.predict(X_test)))
 
