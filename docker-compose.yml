@@ -1,0 +1,151 @@
+# ── Shared Airflow configuration ─────────────────────────────────────────────
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile.airflow
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+    AIRFLOW__CORE__FERNET_KEY: ""
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+    PYTHONPATH: /app
+    PROJECT_ROOT: /app
+  volumes:
+    - .:/app
+    - ./dags:/opt/airflow/dags
+    - airflow-logs:/opt/airflow/logs
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  # ---------------------------------------------------------------------------
+  # Jupyter Notebook environment for interactive development (Steps 1-6)
+  # ---------------------------------------------------------------------------
+  notebook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flight-fare-notebook
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+    command: >
+      jupyter notebook
+      --ip=0.0.0.0
+      --port=8888
+      --no-browser
+      --allow-root
+      --NotebookApp.token=''
+
+  # ---------------------------------------------------------------------------
+  # Flask/Streamlit prediction API (Stretch Challenge)
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flight-fare-api
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+      - FLASK_APP=app/app.py
+    command: ["python", "app/app.py"]
+    depends_on:
+      - notebook
+    profiles:
+      - api
+
+  # ---------------------------------------------------------------------------
+  # Airflow — PostgreSQL metadata database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:15
+    container_name: flight-fare-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    profiles:
+      - airflow
+
+  # ---------------------------------------------------------------------------
+  # Airflow — Database migration and admin user creation (run once)
+  # ---------------------------------------------------------------------------
+  airflow-init:
+    <<: *airflow-common
+    container_name: flight-fare-airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate &&
+        airflow users create \
+          --username admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@example.com \
+          --password admin || true
+    profiles:
+      - airflow
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # Airflow — Web UI (DAG management, logs, task monitoring)
+  # ---------------------------------------------------------------------------
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: flight-fare-airflow-webserver
+    command: airflow webserver --port 8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    profiles:
+      - airflow
+
+  # ---------------------------------------------------------------------------
+  # Airflow — DAG scheduler
+  # ---------------------------------------------------------------------------
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: flight-fare-airflow-scheduler
+    command: airflow scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    profiles:
+      - airflow
+
+volumes:
+  postgres-data:
+  airflow-logs:
