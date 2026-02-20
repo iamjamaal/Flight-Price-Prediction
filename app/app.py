@@ -25,10 +25,7 @@ from flask import Flask, request, jsonify
 
 from src.models import load_model
 from src.feature_engineering import (
-    create_date_features,
-    encode_categoricals,
     load_training_columns,
-    align_features,
     load_scaler,
 )
 
@@ -64,6 +61,27 @@ def get_scaler():
     return scaler, scaler_columns
 
 
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({
+        "service": "Flight Fare Prediction API",
+        "endpoints": {
+            "GET  /health": "Health check",
+            "POST /predict": "Predict fare — send JSON with airline, source, destination, date",
+        },
+        "example": {
+            "url": "POST /predict",
+            "body": {
+                "airline": "Biman Bangladesh Airlines",
+                "source": "DAC",
+                "destination": "CGP",
+                "date": "2026-03-15",
+                "class": "Economy",
+            }
+        }
+    })
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
@@ -73,7 +91,7 @@ def health():
 def predict():
     """
     Expects JSON with keys matching the raw dataset columns.
-    Returns {"predicted_fare": <float>}.
+    Returns {"predicted_fare_bdt": <float>}.
     """
     data = request.get_json(force=True)
 
@@ -83,32 +101,58 @@ def predict():
         return jsonify({"error": f"Missing fields: {missing}"}), 400
 
     try:
-        row = pd.DataFrame([{
-            "Airline": data["airline"],
-            "Source": data["source"],
-            "Destination": data["destination"],
-            "Date": data["date"],
-            "Stopovers": data.get("stopovers", "Non-stop"),
-            "Aircraft Type": data.get("aircraft_type", "Boeing 737"),
-            "Class": data.get("class", "Economy"),
-            "Booking Source": data.get("booking_source", "Online Website"),
-            "Duration": data.get("duration", 2.0),
-            "DaysBeforeDeparture": data.get("days_before_departure", 30),
-            "Seasonality": data.get("seasonality", "Regular"),
-        }])
+        # Parse date and derive temporal features
+        dt = pd.to_datetime(data["date"])
+        month = dt.month
+        season_map = {
+            12: "Winter", 1: "Winter", 2: "Winter",
+            3: "Summer",  4: "Summer",  5: "Summer",
+            6: "Monsoon", 7: "Monsoon", 8: "Monsoon",
+            9: "Autumn", 10: "Autumn", 11: "Autumn",
+        }
+        season = season_map[month]
+        weekday_name = dt.day_name()
 
-        row = create_date_features(row)
-        row = encode_categoricals(row)
+        airline    = data["airline"]
+        source     = data["source"]
+        destination = data["destination"]
+        stopovers  = data.get("stopovers", "Non-stop")
+        travel_class = data.get("class", "Economy")
+        aircraft_type = data.get("aircraft_type", "Boeing 737")
+        booking_source = data.get("booking_source", "Online Website")
+        duration   = float(data.get("duration", 2.0))
+        days_before = int(data.get("days_before_departure", 30))
 
-        non_numeric = row.select_dtypes(exclude="number").columns.tolist()
-        row = row.drop(columns=non_numeric, errors="ignore")
+        # Build a zero-vector aligned to training columns, then set features
+        training_columns = get_training_columns()
+        row = pd.DataFrame([[0] * len(training_columns)], columns=training_columns)
 
-        fitted_scaler, scale_cols = get_scaler()
-        present = [c for c in scale_cols if c in row.columns]
-        if present:
-            row[present] = fitted_scaler.transform(row[present])
+        # Numeric features
+        for col, val in [
+            ("Duration", duration),
+            ("DaysBeforeDeparture", days_before),
+            ("Month", month),
+            ("Day", dt.day),
+            ("Weekday", dt.weekday()),
+        ]:
+            if col in row.columns:
+                row[col] = val
 
-        row = align_features(row, get_training_columns())
+        # One-hot features — set to 1 if the column exists in training schema
+        one_hot = [
+            f"Airline_{airline}",
+            f"Source_{source}",
+            f"Destination_{destination}",
+            f"Stopovers_{stopovers}",
+            f"Aircraft Type_{aircraft_type}",
+            f"Class_{travel_class}",
+            f"Booking Source_{booking_source}",
+            f"Season_{season}",
+            f"WeekdayName_{weekday_name}",
+        ]
+        for col in one_hot:
+            if col in row.columns:
+                row[col] = 1
 
         m = get_model()
         pred_log = m.predict(row)[0]
