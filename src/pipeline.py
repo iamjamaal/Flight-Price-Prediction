@@ -9,6 +9,7 @@ All file paths are resolved relative to PROJECT_ROOT so the functions
 work identically inside Docker containers and in local environments.
 """
 
+
 import json
 import logging
 import os
@@ -63,7 +64,8 @@ def _eval_bdt(model, X_test, y_test_log):
     }
 
 
-# ── Phase 1 ──────────────────────────────────────────────────────────────────
+
+# ── Phase 1 
 
 def load_and_validate(**context):
     """Load the raw CSV and persist a quality summary."""
@@ -82,9 +84,11 @@ def load_and_validate(**context):
     out = DATA_PROCESSED / "data_summary.json"
     out.write_text(json.dumps(serializable, indent=2))
     logger.info("Phase 1 complete — %d rows, %d cols", *summary["shape"])
+    
+    
 
 
-# ── Phase 2 ──────────────────────────────────────────────────────────────────
+# ── Phase 2 
 
 def clean_and_preprocess(**context):
     """Clean, engineer features, encode, scale, and produce train/test splits."""
@@ -142,7 +146,9 @@ def clean_and_preprocess(**context):
     )
 
 
-# ── Phase 3 ──────────────────────────────────────────────────────────────────
+
+
+# ── Phase 3
 
 def generate_eda_report(**context):
     """Produce EDA visualizations and KPI statistics."""
@@ -205,7 +211,8 @@ def generate_eda_report(**context):
     logger.info("Phase 3 complete — figures saved to %s", FIGURES_DIR)
 
 
-# ── Phase 4 ──────────────────────────────────────────────────────────────────
+
+# ── Phase 4 
 
 def train_baseline_model(**context):
     """Train a Linear Regression baseline and persist metrics."""
@@ -253,7 +260,9 @@ def train_baseline_model(**context):
     )
 
 
-# ── Phase 5 ──────────────────────────────────────────────────────────────────
+
+
+# ── Phase 5 
 
 def train_advanced_models(**context):
     """Train, tune, and compare multiple regression models."""
@@ -307,14 +316,18 @@ def train_advanced_models(**context):
         results["xgboost_tuned"] = evaluate_model(best_xgb, X_test, y_test)
         trained["xgboost_tuned"] = best_xgb
 
-    # --- Cross-validation for top models ---
+
+    # --- Cross-validation for some models ---
     for name in ["ridge", "random_forest"]:
         if name in trained:
             cross_validate_model(trained[name], X_train, y_train, cv=5)
+            
 
     # --- Comparison table ---
     comparison = build_comparison_table(results)
     comparison.to_csv(DATA_PROCESSED / "model_comparison.csv", index=False)
+    
+    
 
     # --- Bias-variance tradeoff plot (log-space friendly alpha range) ---
     alphas = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
@@ -345,6 +358,8 @@ def train_advanced_models(**context):
         dpi=150, bbox_inches="tight",
     )
     plt.close("all")
+    
+    
 
     # --- Select and save best ---
     best_name = comparison.iloc[0]["Model"]
@@ -355,7 +370,7 @@ def train_advanced_models(**context):
     )
 
 
-# ── Phase 6 ──────────────────────────────────────────────────────────────────
+# ── Phase 6 
 
 def interpret_and_report(**context):
     """Feature importance, coefficients, and business insight report."""

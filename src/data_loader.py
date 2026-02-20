@@ -1,14 +1,15 @@
 """
 data_loader.py
 ==============
-Responsible for loading the raw dataset and performing initial inspection.
-Used in Phase 1 (Problem Definition & Data Understanding).
+Loading the raw dataset and performing initial inspection.
+Phase 1 (Problem Definition & Data Understanding).
 """
 
 import pandas as pd
 from pathlib import Path
 
-# ── Default path to the raw dataset ──────────────────────────────────────────
+
+# ── Default path to the raw dataset
 DEFAULT_DATA_PATH = Path("data/raw/Flight_Price_Dataset_of_Bangladesh.csv")
 
 
@@ -35,6 +36,7 @@ def load_dataset(path: str | Path = DEFAULT_DATA_PATH) -> pd.DataFrame:
     df = pd.read_csv(path)
     print(f"Loaded {len(df):,} rows × {df.shape[1]} columns from {path.name}")
     return df
+
 
 
 def inspect_dataset(df: pd.DataFrame) -> dict:

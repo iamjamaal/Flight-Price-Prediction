@@ -11,6 +11,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import cross_val_score
 
 
+
+
 def evaluate_model(model, X_test, y_test) -> dict:
     """
     Compute core regression metrics on the test set.
@@ -35,11 +37,13 @@ def evaluate_model(model, X_test, y_test) -> dict:
     return metrics
 
 
+
 def print_metrics(metrics: dict) -> None:
     """Pretty-print evaluation metrics."""
     print(f"  R²   = {metrics['r2']:.4f}")
     print(f"  MAE  = {metrics['mae']:.2f}")
     print(f"  RMSE = {metrics['rmse']:.2f}")
+
 
 
 def cross_validate_model(

@@ -22,6 +22,7 @@ from sklearn.model_selection import RandomizedSearchCV, cross_val_score
 _OPTIONAL_MODELS = {}
 
 
+
 def _get_xgboost():
     if "xgboost" not in _OPTIONAL_MODELS:
         from xgboost import XGBRegressor
@@ -29,7 +30,7 @@ def _get_xgboost():
     return _OPTIONAL_MODELS["xgboost"]
 
 
-# ── Model Registry ───────────────────────────────────────────────────────────
+# ── Model Registry
 MODEL_REGISTRY = {
     "linear_regression": lambda: LinearRegression(),
     "ridge": lambda: Ridge(alpha=1.0),
@@ -40,7 +41,9 @@ MODEL_REGISTRY = {
     "xgboost": lambda: _get_xgboost()(n_estimators=100, random_state=42, n_jobs=1),
 }
 
-# ── Hyperparameter grids for tuning ─────────────────────────────────────────
+
+
+# ── Hyperparameter grids for tuning 
 PARAM_GRIDS = {
     "ridge": {"alpha": [0.01, 0.1, 1.0, 10.0, 100.0]},
     "lasso": {"alpha": [0.001, 0.01, 0.1, 1.0, 10.0]},
@@ -62,6 +65,7 @@ PARAM_GRIDS = {
         "subsample": [0.7, 0.8, 1.0],
     },
 }
+
 
 
 def train_model(name: str, X_train, y_train):
@@ -128,6 +132,8 @@ def tune_model(
     print(f"Best params for {name}: {search.best_params_}")
     print(f"Best CV {scoring}: {search.best_score_:.4f}")
     return search.best_estimator_
+
+
 
 
 def save_model(model, path: str | Path) -> None:

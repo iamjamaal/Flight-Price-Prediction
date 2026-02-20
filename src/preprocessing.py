@@ -6,9 +6,11 @@ fixing invalid entries, and validating data types.
 Used in Phase 2 (Data Cleaning & Preprocessing).
 """
 
+
 import pandas as pd
 import numpy as np
 from typing import Optional
+
 
 # Maps raw dataset column names to the standardised names used throughout
 # the pipeline.  Keys that don't appear in a given DataFrame are silently
@@ -21,6 +23,9 @@ _COLUMN_RENAME_MAP: dict[str, str] = {
     "Duration (hrs)": "Duration",
     "Days Before Departure": "DaysBeforeDeparture",
 }
+
+
+
 
 # Columns that are redundant once the rename has been applied, or that
 # leak information that wouldn't be available at prediction time.
@@ -60,6 +65,7 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+
 def drop_irrelevant_columns(
     df: pd.DataFrame,
     extra_cols: Optional[list[str]] = None,
@@ -69,10 +75,6 @@ def drop_irrelevant_columns(
 
     Steps:
     1. Rename raw columns (e.g. ``Total Fare (BDT)`` → ``Total Fare``).
-    2. Drop redundant columns (e.g. ``Source Name``, ``Arrival Date & Time``).
-    3. Drop columns whose names contain 'unnamed' or 'index' (case-insensitive).
-    4. Drop any additional columns specified via *extra_cols*.
-
     Parameters
     ----------
     df : pd.DataFrame
@@ -180,6 +182,7 @@ def fix_invalid_entries(df: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+
 def validate_dtypes(df: pd.DataFrame) -> pd.DataFrame:
     """
     Ensure columns have correct data types.
@@ -209,6 +212,7 @@ def validate_dtypes(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
             print(f"  {col} -> datetime64")
+            
 
     # Categorical columns
     cat_candidates = (

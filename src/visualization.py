@@ -1,6 +1,5 @@
 """
 visualization.py
-================
 All plotting utilities for EDA, model evaluation, and interpretation.
 Used across Phases 3–6.
 
@@ -13,6 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
+
 
 FIGURE_DIR = Path("reports/figures")
 FIGURE_DIR.mkdir(parents=True, exist_ok=True)
@@ -28,7 +28,8 @@ def _save(fig, filename: str | None):
         print(f"Saved -> {path}")
 
 
-# ── EDA Visualizations ──────────────────────────────────────────────────────
+
+# ── EDA Visualizations
 
 def plot_correlation_heatmap(df: pd.DataFrame, save_as: str | None = "correlation_heatmap.png"):
     """Correlation heatmap of all numerical columns."""
@@ -95,7 +96,7 @@ def plot_seasonal_fares(df: pd.DataFrame, save_as: str | None = "seasonal_fares.
     return axes
 
 
-# ── Model Evaluation Visualizations ─────────────────────────────────────────
+# ── Model Evaluation Visualizations 
 
 def plot_actual_vs_predicted(y_true, y_pred, save_as: str | None = "actual_vs_predicted.png"):
     """Scatter plot of actual vs predicted values with 45-degree reference."""
@@ -133,7 +134,7 @@ def plot_residuals(y_true, y_pred, save_as: str | None = "residuals.png"):
     return axes
 
 
-# ── Interpretation Visualizations ────────────────────────────────────────────
+# ── Interpretation Visualizations 
 
 def plot_feature_importance(model, feature_names: list[str], top_n: int = 15, save_as: str | None = "feature_importance.png"):
     """Bar chart of top-N feature importances from a tree-based model."""

@@ -1,13 +1,5 @@
 """
 streamlit_app.py
-================
-Streamlit web application for flight fare prediction.
-
-Features:
-    - Modern, professional UI with custom styling
-    - Interactive flight booking form
-    - Real-time fare prediction
-    - Analytics dashboard with insights
 """
 
 import sys
@@ -30,9 +22,8 @@ from src.feature_engineering import (
     load_scaler,
 )
 
-# -----------------------------------------------------------------------------
-# Page Configuration
-# -----------------------------------------------------------------------------
+
+
 st.set_page_config(
     page_title="Flight Fare Predictor | Bangladesh",
     page_icon="images/plane.png" if Path("images/plane.png").exists() else "✈️",
@@ -40,9 +31,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# -----------------------------------------------------------------------------
+
+
 # Custom CSS Styling
-# -----------------------------------------------------------------------------
 st.markdown("""
 <style>
     /* Main container */
@@ -201,9 +192,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# -----------------------------------------------------------------------------
+
+
+
+
 # Constants
-# -----------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODEL_PATH = PROJECT_ROOT / "models" / "best_model.joblib"
 TRAIN_COLUMNS_PATH = PROJECT_ROOT / "data" / "processed" / "train_columns.json"
@@ -259,9 +252,10 @@ TRAVEL_CLASSES = {
     "First Class": "Premium luxury experience"
 }
 
-# -----------------------------------------------------------------------------
+
+
+
 # Cached Resource Loaders
-# -----------------------------------------------------------------------------
 @st.cache_resource
 def get_model():
     return load_model(MODEL_PATH)
@@ -287,37 +281,70 @@ def load_model_comparison():
         return pd.read_csv(MODEL_COMPARISON_PATH)
     return None
 
-# -----------------------------------------------------------------------------
+
+
+
 # Prediction Function
-# -----------------------------------------------------------------------------
 def predict_fare(airline, source, destination, travel_date, travel_class,
                  stopovers="Direct", duration=3.0, days_before=30):
-    row = pd.DataFrame([{
-        "Airline": airline,
-        "Source": source,
-        "Destination": destination,
-        "Date": travel_date.strftime("%Y-%m-%d"),
-        "Stopovers": stopovers,
-        "Aircraft Type": "Boeing 737",
-        "Class": travel_class,
-        "Booking Source": "Online Website",
-        "Duration": duration,
-        "DaysBeforeDeparture": days_before,
-        "Seasonality": "Regular",
-    }])
+   
+    dt = pd.to_datetime(travel_date)
+    month = dt.month
+    day = dt.day
+    weekday = dt.weekday()
+    weekday_name = dt.day_name()
+    
+    
 
-    row = create_date_features(row)
-    row = encode_categoricals(row)
+    # Season mapping for Bangladesh climate
+    season_map = {
+        12: "Winter", 1: "Winter", 2: "Winter",
+        3: "Summer", 4: "Summer", 5: "Summer",
+        6: "Monsoon", 7: "Monsoon", 8: "Monsoon",
+        9: "Autumn", 10: "Autumn", 11: "Autumn",
+    }
+    season = season_map[month]
+    
+    
+    
 
-    non_numeric = row.select_dtypes(exclude="number").columns.tolist()
-    row = row.drop(columns=non_numeric, errors="ignore")
+    # Create a DataFrame with all training columns initialized to 0
+    training_columns = get_training_columns()
+    row = pd.DataFrame([[0] * len(training_columns)], columns=training_columns)
 
-    fitted_scaler, scale_cols = get_scaler()
-    present = [c for c in scale_cols if c in row.columns]
-    if present:
-        row[present] = fitted_scaler.transform(row[present])
+    # Set numeric features
+    if "Duration" in row.columns:
+        row["Duration"] = duration
+    if "DaysBeforeDeparture" in row.columns:
+        row["DaysBeforeDeparture"] = days_before
+    if "Month" in row.columns:
+        row["Month"] = month
+    if "Day" in row.columns:
+        row["Day"] = day
+    if "Weekday" in row.columns:
+        row["Weekday"] = weekday
+        
+        
 
-    row = align_features(row, get_training_columns())
+    # Set one-hot encoded features to 1 where applicable
+    one_hot_features = [
+        f"Airline_{airline}",
+        f"Source_{source}",
+        f"Destination_{destination}",
+        f"Stopovers_{stopovers}",
+        "Aircraft Type_Boeing 737",
+        f"Class_{travel_class}",
+        "Booking Source_Online Website",
+        "Seasonality_Regular",
+        f"WeekdayName_{weekday_name}",
+        f"Season_{season}",
+    ]
+
+
+
+    for col in one_hot_features:
+        if col in row.columns:
+            row[col] = 1
 
     model = get_model()
     pred_log = model.predict(row)[0]
@@ -325,9 +352,11 @@ def predict_fare(airline, source, destination, travel_date, travel_class,
 
     return max(prediction, 0)
 
-# -----------------------------------------------------------------------------
+
+
+
+
 # Header
-# -----------------------------------------------------------------------------
 st.markdown("""
 <div class="main-header">
     <h1>Flight Fare Predictor</h1>
@@ -335,9 +364,10 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# -----------------------------------------------------------------------------
+
+
+
 # Main Layout
-# -----------------------------------------------------------------------------
 col_form, col_spacer, col_result = st.columns([2, 0.2, 1.5])
 
 with col_form:
@@ -476,10 +506,12 @@ with col_result:
 
             except Exception as e:
                 st.error(f"Unable to calculate fare: {str(e)}")
+                
+                
+                
 
-# -----------------------------------------------------------------------------
+
 # Analytics Dashboard
-# -----------------------------------------------------------------------------
 st.markdown("---")
 st.markdown("## Analytics & Insights")
 
@@ -557,10 +589,11 @@ if kpis:
 
 else:
     st.warning("Analytics data not available. Please run the ML pipeline first.")
+    
+    
 
-# -----------------------------------------------------------------------------
+
 # Model Performance (collapsible)
-# -----------------------------------------------------------------------------
 with st.expander("Model Performance Metrics"):
     model_df = load_model_comparison()
     if model_df is not None:
@@ -587,16 +620,17 @@ with st.expander("Model Performance Metrics"):
             hide_index=True
         )
 
-# -----------------------------------------------------------------------------
+
+
+
 # Footer
-# -----------------------------------------------------------------------------
 st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #888; padding: 1rem;'>
         <small>
             Flight Fare Prediction System | Powered by Machine Learning<br>
-            AmaliTech DEM09 Data Science Module
+            Developed by Noah Jamal Nabila | © 2026
         </small>
     </div>
     """,

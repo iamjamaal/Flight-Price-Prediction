@@ -15,6 +15,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
 
+
+
 def create_date_features(df: pd.DataFrame, date_col: str = "Date") -> pd.DataFrame:
     """
     Extract temporal features from a datetime column.
@@ -39,6 +41,7 @@ def create_date_features(df: pd.DataFrame, date_col: str = "Date") -> pd.DataFra
     df["Day"] = dt.dt.day
     df["Weekday"] = dt.dt.weekday
     df["WeekdayName"] = dt.dt.day_name()
+
 
     # Season mapping for Bangladesh climate
     season_map = {
@@ -96,6 +99,7 @@ def encode_categoricals(
     return df
 
 
+
 def scale_numericals(
     df: pd.DataFrame,
     columns: list[str] | None = None,
@@ -138,6 +142,7 @@ def scale_numericals(
         print(f"Transformed (pre-fitted scaler): {columns}")
 
     return df, scaler
+
 
 
 def split_data(
@@ -198,7 +203,10 @@ def split_data(
     return X_train, X_test, y_train, y_test
 
 
-# ── Training-column persistence for inference alignment ──────────────────────
+
+
+
+# ── Training-column persistence for inference alignment
 
 
 def save_training_columns(columns: list[str], path: str | Path) -> None:
@@ -230,7 +238,9 @@ def align_features(df: pd.DataFrame, training_columns: list[str]) -> pd.DataFram
     return df.reindex(columns=training_columns, fill_value=0)
 
 
-# ── Scaler persistence for inference ─────────────────────────────────────────
+
+
+# ── Scaler persistence for inference
 
 SCALER_PATH = Path("data/processed/scaler.joblib")
 SCALER_COLUMNS_PATH = Path("data/processed/scaler_columns.json")
