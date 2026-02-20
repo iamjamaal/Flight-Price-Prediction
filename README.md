@@ -16,7 +16,13 @@ Airlines and travel platforms need accurate fare estimates to power dynamic
 pricing strategies and recommendation engines. This project frames that need as
 a **supervised regression** problem where the target variable is **Total Fare**
 and the feature space includes airline identity, source/destination cities, travel
-dates, base fare, and tax & surcharge amounts.
+dates, travel class, booking lead time, and temporal features derived from the
+departure date.
+
+> **Note on data leakage:** `Base Fare` and `Tax & Surcharge` are present in the
+> raw dataset but are **excluded from all model features** — they form an
+> arithmetic identity with the target (`Total Fare = Base Fare + Tax & Surcharge`)
+> and would cause leakage. Including them inflates R² to ~1.0 artificially.
 
 ---
 
@@ -52,8 +58,11 @@ Flight-Price-Prediction/
 ├── reports/
 │   └── figures/                # Saved charts and plots
 ├── docs/
-│   ├── ROADMAP.md              # Phased delivery roadmap with status
-│   └── EXECUTION_PLAN.md       # Detailed step-by-step execution guide
+│   ├── ROADMAP.md                  # Phased delivery roadmap with status
+│   ├── EXECUTION_PLAN.md           # Detailed step-by-step execution guide
+│   ├── IMPROVEMENTS.md             # Pipeline improvement log
+│   └── LAB_REQUIREMENTS_EVALUATION.md  # Assessment criteria checklist
+├── PROJECT_DOCUMENTATION.md    # Full step-by-step implementation writeup
 ├── Dockerfile                  # Jupyter / API image
 ├── Dockerfile.airflow          # Airflow image
 ├── docker-compose.yml
@@ -215,19 +224,56 @@ After a successful DAG run, these outputs are produced:
 See [`docs/EXECUTION_PLAN.md`](docs/EXECUTION_PLAN.md) for the full
 step-by-step guide including troubleshooting.
 
+For a detailed writeup of how each project step was implemented — including
+code, metrics, and findings — see [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMENTATION.md).
+
+---
+
+## Key Findings
+
+| Finding | Detail |
+|---|---|
+| Best model R² | **0.8935** (Linear Regression, Ridge, XGBoost Tuned — tied) |
+| Leakage fix | Removing `Base Fare` & `Tax & Surcharge` dropped R² from ~1.0 to honest 0.89 |
+| Log₁p transform | Linearised the right-skewed fare distribution (skewness 1.58); enabled linear models to match ensemble methods |
+| Winter fare premium | **+16.2%** over Autumn — December–February is the highest-demand window |
+| Airline spread | ~7,400 BDT between most expensive (IndiGo) and cheapest (Vistara) carriers |
+| Most expensive route | SPD → BKK: 117,952 BDT average |
+| Dataset quality | 57,000 records — zero missing values, zero duplicates |
+
+### Final Model Ranking (Airflow DAG run — log₁p-scale metrics)
+
+| Rank | Model | R² | MAE | RMSE |
+|---|---|---|---|---|
+| 1 | Linear Regression | **0.8935** | 0.35 | 0.46 |
+| 1 | Ridge | **0.8935** | 0.35 | 0.46 |
+| 1 | XGBoost (Tuned) | **0.8935** | 0.35 | 0.46 |
+| 4 | Random Forest (Tuned) | 0.8932 | 0.35 | 0.46 |
+| 5 | Lasso | 0.8931 | 0.35 | 0.46 |
+| 6 | Random Forest | 0.8878 | 0.36 | 0.47 |
+| 7 | XGBoost | 0.8876 | 0.36 | 0.47 |
+| 8 | Decision Tree | 0.7812 | 0.48 | 0.66 |
+
 ---
 
 ## Dataset
 
-| Field             | Description                                  |
-|-------------------|----------------------------------------------|
-| Airline           | Name of the airline carrier                  |
-| Source            | Departure city                               |
-| Destination       | Arrival city                                 |
-| Date              | Date of travel                               |
-| Base Fare         | Ticket price before taxes                    |
-| Tax & Surcharge   | Government taxes and fuel surcharges         |
-| **Total Fare**    | **Target variable** (Base Fare + Tax)        |
+| Field             | Description                                  | Used as Feature |
+|-------------------|----------------------------------------------|---|
+| Airline           | Name of the airline carrier                  | Yes |
+| Source            | Departure airport code                       | Yes |
+| Destination       | Arrival airport code                         | Yes |
+| Date              | Departure date (decomposed to Month, Day, Weekday, Season) | Yes (engineered) |
+| Duration (hrs)    | Flight duration                              | Yes |
+| Stopovers         | Direct / 1 Stop / 2+ Stops                  | Yes |
+| Aircraft Type     | Boeing, Airbus, etc.                         | Yes |
+| Class             | Economy / Business / First                   | Yes |
+| Booking Source    | Online, travel agent, etc.                   | Yes |
+| Days Before Dep.  | Booking lead time in days                    | Yes |
+| Seasonality       | Pre-labelled season (cross-checked with Date) | Yes |
+| Base Fare         | Ticket price before taxes                    | **No — leakage** |
+| Tax & Surcharge   | Government taxes and fuel surcharges         | **No — leakage** |
+| **Total Fare**    | **Target variable** (Base Fare + Tax)        | Target only |
 
 ---
 
@@ -235,12 +281,12 @@ step-by-step guide including troubleshooting.
 
 | Phase | Airflow Task | Notebook | Description |
 |-------|-------------|----------|-------------|
-| 1 | `load_and_validate` | `01_problem_definition_data_understanding` | Load data, inspect schema, document assumptions |
-| 2 | `clean_and_preprocess` | `02_data_cleaning_preprocessing` | Handle missing values, fix types, engineer features |
-| 3 | `generate_eda_report` | `03_exploratory_data_analysis` | Statistical summaries, visual trends, KPIs |
-| 4 | `train_baseline_model` | `04_baseline_model_development` | Linear Regression baseline with R², MAE, RMSE |
-| 5 | `train_advanced_models` | `05_advanced_modeling_optimization` | Ridge, Lasso, Decision Tree, Random Forest, XGBoost |
-| 6 | `interpret_and_report` | `06_model_interpretation_insights` | Feature importance, business insights, recommendations |
+| 1 | `load_and_validate` | `01_problem_definition_data_understanding` | Load 57,000 records, inspect schema, document assumptions |
+| 2 | `clean_and_preprocess` | `02_data_cleaning_preprocessing` | Impute, fix types, engineer date features, remove leakage columns, apply `log1p` transform, one-hot encode, StandardScale, 80/20 split |
+| 3 | `generate_eda_report` | `03_exploratory_data_analysis` | Statistical summaries, 4 visualisations, KPI JSON (airline fares, popular routes, seasonal trends) |
+| 4 | `train_baseline_model` | `04_baseline_model_development` | Linear Regression baseline — R²=0.8935 on log-scale target |
+| 5 | `train_advanced_models` | `05_advanced_modeling_optimization` | Ridge, Lasso, Decision Tree, Random Forest, XGBoost; RandomizedSearchCV tuning; bias–variance analysis |
+| 6 | `interpret_and_report` | `06_model_interpretation_insights` | Airline coefficients, seasonal/route importance, stakeholder summary, leakage documentation |
 
 ---
 
