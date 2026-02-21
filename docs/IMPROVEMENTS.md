@@ -1,7 +1,6 @@
 # Improvements — Flight Fare Prediction
 
-> **Status:** All code/config fixes applied. Notebooks updated with interpretation.
-> Next step: rebuild Docker images and re-trigger the Airflow DAG to produce leakage-free artifacts.
+> **Status:** All improvements implemented and pipeline verified. Model performance confirmed stable at R²=0.8935.
 
 ---
 
@@ -197,7 +196,7 @@ the full fare range.
 
 ---
 
-## Execution Status
+## Execution Status — Round 1 (Core Pipeline Fixes)
 
 | # | Fix | Status |
 |---|-----|--------|
@@ -210,9 +209,101 @@ the full fare range.
 | 7 | Notebook interpretation — fill in findings | **Done** (notebooks 03–06) |
 | 8 | Log-transform target variable | **Done** (`src/pipeline.py`) |
 
-### Remaining Steps
+---
 
-1. Rebuild the Airflow Docker image: `docker compose --profile airflow build --no-cache`
-2. Re-trigger the DAG to produce log-transform artifacts
-3. Run notebooks 03–06 in Jupyter to generate visible cell outputs
-4. Commit and push
+## Round 2 — Production Readiness (5 Improvements)
+
+These improvements were implemented after the initial pipeline was verified. The full pipeline was re-run after each to confirm model performance remained stable.
+
+### 9. Centralize Constants
+
+**Problem:** `SEASON_MAP` was duplicated inline in 3 files (`feature_engineering.py`, `app.py`, `streamlit_app.py`); `CITY_NAME_ALIASES` was inline in `preprocessing.py`.
+
+**Fix:** Created `src/constants.py` as a single source of truth. All 4 files now import from it.
+
+**Files:** `src/constants.py` (new), `src/preprocessing.py`, `src/feature_engineering.py`, `app/streamlit_app.py`, `app/app.py`
+
+---
+
+### 10. Model Versioning
+
+**Problem:** `best_model.joblib` was silently overwritten on every pipeline run. No audit trail of which model version is deployed.
+
+**Fix:** Added `save_model_versioned()` to `src/models.py`. Every pipeline run now saves:
+- `models/best_model_v<YYYYMMDD_HHMMSS>.joblib` — timestamped archive
+- `models/best_model.joblib` — canonical alias (backward compatible)
+- Appends entry to `models/model_registry.json` — JSON audit log with metrics and timestamp
+
+**Files:** `src/models.py`, `src/pipeline.py`
+
+**Sample registry entry (2026-02-20 run):**
+```json
+{
+  "version": "20260220_235244",
+  "model_name": "best_model",
+  "metrics": { "r2": 0.8935, "mae": 0.35, "rmse": 0.46 },
+  "timestamp": "2026-02-20T23:52:44.951037"
+}
+```
+
+---
+
+### 11. Flask API Hardening
+
+**Problem:** API had no rate limiting, used `get_json(force=True)` (swallowed parse errors), contained a duplicate `season_map`, ran with `debug=True` always, and accepted any input without validation.
+
+**Fixes (7 issues):**
+1. `flask-limiter` — 30 req/min on `/predict`, in-memory (no Redis)
+2. `request.get_json()` (without `force=True`) + 400 on `None`
+3. Input validation against `known_values.json` (24 airlines, 8 sources, 20 destinations, 3 stopovers, 3 classes) — returns 400 with `accepted_values`
+4. Removed duplicate `season_map` → imports `SEASON_MAP` from `src/constants.py`
+5. `debug = os.environ.get("FLASK_DEBUG", "0") == "1"` — off by default
+6. Added `known_values.json` save in Phase 2 of pipeline
+7. Added Swagger UI (see improvement 12)
+
+**Files:** `app/app.py`, `src/pipeline.py`, `requirements.txt`
+
+---
+
+### 12. OpenAPI / Swagger Documentation
+
+**Problem:** API had no interactive documentation.
+
+**Fix:** Integrated `flasgger` — YAML docstrings on all 3 routes. Swagger UI available at `GET /apidocs/`.
+
+**Files:** `app/app.py`
+
+---
+
+### 13. pytest Test Suite
+
+**Problem:** No automated tests existed.
+
+**Fix:** Created 51 tests across 3 modules — all run with no disk I/O (models/files mocked):
+
+| File | Tests | Covers |
+|---|---|---|
+| `tests/test_preprocessing.py` | 16 | `normalize_columns`, `handle_missing_values`, `fix_invalid_entries`, `validate_dtypes` |
+| `tests/test_feature_engineering.py` | 20 | `create_date_features`, `encode_categoricals`, `split_data` |
+| `tests/test_api.py` | 14 | All 3 routes, content-type error, missing fields, input validation |
+
+Run with: `pytest` (all 51 pass in ~6 seconds)
+
+**Files:** `pytest.ini`, `tests/__init__.py`, `tests/test_preprocessing.py`, `tests/test_feature_engineering.py`, `tests/test_api.py`
+
+---
+
+## Pipeline Verification (Post-Round-2)
+
+Full pipeline re-run confirmed model performance is **unchanged** by the refactoring:
+
+| Model | R² | MAE | RMSE |
+|---|---|---|---|
+| Linear Regression (best) | **0.8935** | 0.35 | 0.46 |
+| Ridge | **0.8935** | 0.35 | 0.46 |
+| Random Forest (Tuned) | 0.8932 | 0.35 | 0.46 |
+| Lasso | 0.8931 | 0.35 | 0.46 |
+| Random Forest | 0.8878 | 0.36 | 0.47 |
+| Decision Tree | 0.778 | 0.48 | 0.66 |
+
+> XGBoost requires `pip install xgboost` separately and was not present in this run.

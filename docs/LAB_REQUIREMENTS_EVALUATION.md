@@ -95,7 +95,7 @@ This document evaluates the project against the **Module Lab: Flight Fare Predic
 | Lasso Regression | `models.py`: Lasso in MODEL_REGISTRY (alpha tuned for log-space); pipeline and Notebook 05. | ✅ Met |
 | Decision Tree Regressor | `models.py`: DecisionTreeRegressor in MODEL_REGISTRY; pipeline and Notebook 05. | ✅ Met |
 | Random Forest Regressor | `models.py`: RandomForestRegressor in MODEL_REGISTRY; pipeline and Notebook 05. | ✅ Met |
-| Gradient Boosted Trees (optional) | `models.py`: XGBRegressor (and GradientBoostingRegressor) in MODEL_REGISTRY; Notebook 05 uses XGBoost. | ✅ Met |
+| Gradient Boosted Trees (optional) | `models.py`: XGBRegressor (and GradientBoostingRegressor) in MODEL_REGISTRY; Notebook 05 uses XGBoost. XGBoost requires `pip install xgboost`; gracefully skipped if absent. | ✅ Met |
 | GridSearchCV or RandomizedSearchCV | `models.py`: `tune_model()` uses RandomizedSearchCV; pipeline and Notebook 05 tune RF and XGBoost. | ✅ Met |
 | Compare models with cross-validation | `evaluation.py`: `cross_validate_model()`; Notebook 05 runs CV; pipeline compares models. | ✅ Met |
 | Comparison table: Model, R², MAE, RMSE | `evaluation.py`: `build_comparison_table()`; pipeline writes `model_comparison.csv`; Notebook 05 displays table. | ✅ Met |
@@ -135,9 +135,9 @@ This document evaluates the project against the **Module Lab: Flight Fare Predic
 
 | Challenge | Evidence | Status |
 |-----------|----------|--------|
-| Integrate model into Flask or Streamlit app | `app/app.py`: Flask app with `POST /predict` and `GET /health`; README documents curl example; Docker profile `api`. | ✅ Met |
-| Connect to Airflow pipeline for scheduled retraining | `dags/flight_fare_pipeline.py`: full DAG; `schedule="@weekly"`; README and EXECUTION_PLAN describe trigger and monitoring. | ✅ Met |
-| Deploy locally as simple REST API | Flask app run via `docker compose --profile api up api` on port 5000. | ✅ Met |
+| Integrate model into Flask or Streamlit app | `app/app.py`: Flask app with `POST /predict`, `GET /health`, `GET /`; Swagger UI at `/apidocs/`; rate limiting (30/min); input validation against known training values; `FLASK_DEBUG` env var; README documents curl example; Docker profile `api`. | ✅ Met |
+| Connect to Airflow pipeline for scheduled retraining | `dags/flight_fare_pipeline.py`: full DAG; `schedule="@weekly"`; README and EXECUTION_PLAN describe trigger and monitoring. Phase 2 now also produces `known_values.json` for API validation. | ✅ Met |
+| Deploy locally as simple REST API | Flask app run via `docker compose --profile api up api` on port 5000. Interactive docs at `http://localhost:5000/apidocs/`. | ✅ Met |
 
 ---
 
@@ -146,11 +146,11 @@ This document evaluates the project against the **Module Lab: Flight Fare Predic
 | Criterion | Assessment |
 |-----------|------------|
 | Correct implementation of each project step | Steps 1–6 and suggested visualizations are implemented in code and notebooks; pipeline runs end-to-end. |
-| Code readability and documentation | Modular `src/` (data_loader, preprocessing, feature_engineering, models, evaluation, visualization, pipeline); docstrings; README, EXECUTION_PLAN, ROADMAP. |
+| Code readability and documentation | Modular `src/` (constants, data_loader, preprocessing, feature_engineering, models, evaluation, visualization, pipeline); docstrings; README, EXECUTION_PLAN, ROADMAP. Constants centralized in `src/constants.py`. |
 | Quality of EDA and feature engineering | EDA includes distributions, by-airline/season, heatmap, KPIs; feature engineering includes date features, one-hot, scaling, leak removal, log-transform. |
-| Model performance and comparison rigor | Multiple models, R²/MAE/RMSE, comparison table, CV, tuning, bias–variance plot; leakage removed and log-space metrics documented. |
+| Model performance and comparison rigor | Multiple models, R²/MAE/RMSE, comparison table, CV, tuning, bias–variance plot; leakage removed and log-space metrics documented. Model versioning with `model_registry.json` audit trail. |
 | Clarity of insights and visualization quality | Interpretation notebook and pipeline report address business questions; figures saved at 150 dpi; stakeholder summary and recommendations. |
-| Structure and completeness of deliverables | Six notebooks (01–06), pipeline artifacts (splits, models, figures, JSON reports), docs, Docker, Airflow DAG, Flask API. |
+| Structure and completeness of deliverables | Six notebooks (01–06), pipeline artifacts (splits, models, figures, JSON reports), docs, Docker, Airflow DAG, Flask API (Swagger UI, rate limiting), pytest suite (51 tests). |
 
 ---
 

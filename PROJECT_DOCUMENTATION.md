@@ -47,17 +47,23 @@ Flight-Price-Prediction/
 │   ├── 05_advanced_modeling_optimization.ipynb
 │   └── 06_model_interpretation_insights.ipynb
 ├── src/
+│   ├── constants.py                  # Shared constants (SEASON_MAP, CITY_NAME_ALIASES)
 │   ├── data_loader.py                # Dataset ingestion
 │   ├── preprocessing.py              # Cleaning and validation
 │   ├── feature_engineering.py        # Encoding, scaling, splitting
-│   ├── models.py                     # Model registry and tuning
+│   ├── models.py                     # Model registry, tuning, versioned save
 │   ├── evaluation.py                 # Metrics and comparison
 │   ├── visualization.py              # All plots
 │   └── pipeline.py                   # Orchestration entry point
 ├── dags/
 │   └── flight_fare_pipeline.py       # Apache Airflow DAG
 ├── app/
+│   ├── app.py                        # Flask REST API (Swagger, rate limiting)
 │   └── streamlit_app.py              # Live prediction web app
+├── tests/
+│   ├── test_preprocessing.py         # 16 unit tests
+│   ├── test_feature_engineering.py   # 20 unit tests
+│   └── test_api.py                   # 14 API tests (mocked)
 └── reports/
     └── figures/                      # Saved visualizations (PNG)
 ```
@@ -66,10 +72,11 @@ Flight-Price-Prediction/
 
 | Module | Responsibility |
 |---|---|
+| `constants.py` | Single source of truth for `SEASON_MAP`, `SEASON_ORDER`, `CITY_NAME_ALIASES` |
 | `data_loader.py` | Load raw CSV, inspect structure |
 | `preprocessing.py` | Rename columns, impute, fix invalid entries, validate dtypes |
 | `feature_engineering.py` | Date features, one-hot encoding, StandardScaler, train/test split |
-| `models.py` | Model registry (7 algorithms), hyperparameter grids, RandomizedSearchCV |
+| `models.py` | Model registry (7 algorithms), hyperparameter grids, RandomizedSearchCV, versioned save |
 | `evaluation.py` | R², MAE, RMSE, k-fold cross-validation, comparison table |
 | `visualization.py` | EDA plots, residuals, feature importance, coefficients |
 | `pipeline.py` | 6-phase orchestration callable by Airflow or standalone |
@@ -499,7 +506,7 @@ def tune_model(name, X_train, y_train, cv=3, n_iter=10, scoring="r2"):
 
 **Best Random Forest params:** `n_estimators=100`, `max_depth=10`, `min_samples_split=5`, `min_samples_leaf=1` — CV R²=0.8918
 
-**XGBoost search space:**
+**XGBoost search space** (requires `pip install xgboost`; skipped gracefully if absent):
 - `n_estimators`: [100, 200, 300]
 - `max_depth`: [3, 5, 7, 10]
 - `learning_rate`: [0.01, 0.05, 0.1, 0.2]
@@ -513,16 +520,15 @@ def tune_model(name, X_train, y_train, cv=3, n_iter=10, scoring="r2"):
 |---|---|---|---|---|
 | 1 | Linear Regression | **0.8935** | 0.35 | 0.46 |
 | 1 | Ridge | **0.8935** | 0.35 | 0.46 |
-| 1 | XGBoost (Tuned) | **0.8935** | 0.35 | 0.46 |
-| 4 | Random Forest (Tuned) | 0.8932 | 0.35 | 0.46 |
-| 5 | Lasso | 0.8931 | 0.35 | 0.46 |
-| 6 | Random Forest | 0.8878 | 0.36 | 0.47 |
-| 7 | XGBoost | 0.8876 | 0.36 | 0.47 |
-| 8 | Decision Tree | 0.7812 | 0.48 | 0.66 |
+| 3 | Random Forest (Tuned) | 0.8932 | 0.35 | 0.46 |
+| 4 | Lasso | 0.8931 | 0.35 | 0.46 |
+| 5 | Random Forest | 0.8878 | 0.36 | 0.47 |
+| 6 | Decision Tree | 0.778 | 0.48 | 0.66 |
 
 *All metrics on log₁p-transformed target. Results saved to `data/processed/model_comparison.csv`.*
+*XGBoost requires `pip install xgboost` and was not available in this run.*
 
-**Best model:** Linear Regression / Ridge / XGBoost Tuned (three-way tie at R²=0.8935). `models/best_model.joblib` was saved to disk.
+**Best model:** Linear Regression / Ridge (tied at R²=0.8935). `models/best_model.joblib` (canonical alias) and `models/best_model_v<timestamp>.joblib` (versioned archive) saved to disk. `models/model_registry.json` updated with metrics and timestamp.
 
 ### Cross-Validation
 
@@ -551,7 +557,7 @@ The bias-variance tradeoff was plotted for Ridge and Lasso across 7 alpha values
 2. No significant overfitting is present in the unregularised Linear Regression
 3. Ridge and Lasso are safe choices for production but offer no material improvement
 
-The Decision Tree's low R²=0.7812 confirms that deep single trees overfit without ensemble averaging.
+The Decision Tree's low R²=0.778 confirms that deep single trees overfit without ensemble averaging.
 
 ---
 
@@ -731,12 +737,10 @@ All metrics on log₁p-transformed `Total Fare`. MAE/RMSE in log units.
 |---|---|---|---|
 | Linear Regression | **0.8935** | 0.35 | 0.46 |
 | Ridge | **0.8935** | 0.35 | 0.46 |
-| XGBoost (Tuned) | **0.8935** | 0.35 | 0.46 |
 | Random Forest (Tuned) | 0.8932 | 0.35 | 0.46 |
 | Lasso | 0.8931 | 0.35 | 0.46 |
 | Random Forest | 0.8878 | 0.36 | 0.47 |
-| XGBoost | 0.8876 | 0.36 | 0.47 |
-| Decision Tree | 0.7812 | 0.48 | 0.66 |
+| Decision Tree | 0.778 | 0.48 | 0.66 |
 
 ### Key Project Numbers
 
@@ -762,16 +766,21 @@ All metrics on log₁p-transformed `Total Fare`. MAE/RMSE in log units.
 | Reduced tuning iterations (n_iter=10, cv=3) | ~4× faster pipeline execution without meaningful R² loss |
 | Forced `n_jobs=1` on parallelisable models | Resolved Loky process conflicts in Docker/Airflow environment |
 | Increased Lasso `max_iter` to 50,000 | Resolved convergence warnings; Lasso converges at R²=0.8931 |
+| Centralized constants in `src/constants.py` | Eliminated 3 duplicate `SEASON_MAP` dicts; single source of truth |
+| Model versioning via `save_model_versioned()` | Timestamped archive + `model_registry.json` — no more silent overwrites |
+| Flask API hardening | Rate limiting, input validation, Swagger UI, debug-mode fix, `get_json` fix |
+| pytest suite (51 tests) | All core modules covered; no disk I/O; ~6 s full run |
 
 ### Evaluation Criteria Coverage
 
 | Criterion | How Addressed |
 |---|---|
-| Correct implementation of each project step | All 6 steps implemented across 6 dedicated notebooks and 7 `src/` modules |
-| Code readability and documentation | Modular `src/` package with typed function signatures; notebooks with markdown explanations |
+| Correct implementation of each project step | All 6 steps implemented across 6 dedicated notebooks and 8 `src/` modules |
+| Code readability and documentation | Modular `src/` package with typed function signatures, centralized constants, docstrings; notebooks with markdown explanations |
 | Quality of EDA and feature engineering | 4 EDA visualisations, KPI table, seasonal/route/airline analysis, Bangladesh climate-based season mapping |
-| Model performance and comparison rigor | 8 models benchmarked, hyperparameter tuning on 2, 5-fold cross-validation, bias–variance plots |
+| Model performance and comparison rigor | 6 models benchmarked (+ XGBoost when available), hyperparameter tuning, 5-fold cross-validation, bias–variance plots, versioned model registry |
 | Clarity of insights and visualisation quality | 150 dpi seaborn figures, airline coefficient table, stakeholder summary in notebook 06 |
-| Structure and completeness of deliverables | Notebooks, `src/`, `dags/`, `app/`, `models/`, `reports/` all populated |
+| Structure and completeness of deliverables | Notebooks, `src/`, `dags/`, `app/`, `tests/`, `models/`, `reports/` all populated |
 | Stretch: Streamlit app | Implemented in `app/streamlit_app.py`, Docker-composed |
 | Stretch: Airflow pipeline | Weekly DAG in `dags/flight_fare_pipeline.py`, 6-task graph with parallelism |
+| Stretch: Flask API | Rate-limited REST API with Swagger UI at `/apidocs/`, input validation against training data domain |

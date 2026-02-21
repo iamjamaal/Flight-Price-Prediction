@@ -42,18 +42,23 @@ Flight-Price-Prediction/
 │   └── 06_model_interpretation_insights.ipynb
 ├── src/
 │   ├── __init__.py
+│   ├── constants.py            # Shared constants (SEASON_MAP, CITY_NAME_ALIASES)
 │   ├── data_loader.py          # Dataset loading & initial inspection
 │   ├── preprocessing.py        # Cleaning, imputation, type conversion
 │   ├── feature_engineering.py  # New features, encoding, scaling
-│   ├── models.py               # Model training, tuning, persistence
+│   ├── models.py               # Model training, tuning, versioned persistence
 │   ├── evaluation.py           # Metrics, comparison tables
 │   ├── visualization.py        # All plotting utilities
 │   └── pipeline.py             # Airflow-callable task functions
 ├── dags/
 │   └── flight_fare_pipeline.py # Airflow DAG definition
 ├── app/
-│   ├── app.py                  # Flask REST API (stretch challenge)
+│   ├── app.py                  # Flask REST API with Swagger UI & rate limiting
 │   └── streamlit_app.py        # Streamlit web app (stretch challenge)
+├── tests/
+│   ├── test_preprocessing.py   # pytest — preprocessing unit tests
+│   ├── test_feature_engineering.py  # pytest — feature engineering tests
+│   └── test_api.py             # pytest — Flask API tests (fully mocked)
 ├── models/                     # Serialized trained models (.joblib)
 ├── reports/
 │   └── figures/                # Saved charts and plots
@@ -171,6 +176,13 @@ curl -X POST http://localhost:5000/predict \
   -d '{"airline":"Biman Bangladesh Airlines","source":"DAC","destination":"CGP","date":"2026-03-15"}'
 ```
 
+**API features:**
+- `POST /predict` — fare prediction with input validation against known training values (400 if unknown airline/route)
+- `GET /health` — health check
+- `GET /apidocs/` — interactive Swagger UI (OpenAPI 2.0)
+- Rate limited to **30 requests/minute** per IP (in-memory, no Redis required)
+- Debug mode controlled by `FLASK_DEBUG` environment variable (off by default)
+
 ---
 
 ## Airflow Pipeline
@@ -213,12 +225,15 @@ After a successful DAG run, these outputs are produced:
 | Cleaned dataset | `data/processed/cleaned_with_features.csv` |
 | Train/test splits | `data/processed/X_train.csv`, `y_train.csv`, etc. |
 | Fitted scaler | `data/processed/scaler.joblib` |
+| API input validation values | `data/processed/known_values.json` |
 | EDA KPIs | `data/processed/eda_kpis.json` |
 | Baseline metrics | `data/processed/baseline_metrics.json` |
 | Model comparison | `data/processed/model_comparison.csv` |
 | Interpretation report | `data/processed/interpretation_report.json` |
 | Baseline model | `models/linear_regression_baseline.joblib` |
-| Best model | `models/best_model.joblib` |
+| Best model (canonical) | `models/best_model.joblib` |
+| Best model (versioned) | `models/best_model_v<YYYYMMDD_HHMMSS>.joblib` |
+| Model audit registry | `models/model_registry.json` |
 | All figures | `reports/figures/*.png` |
 
 See [`docs/EXECUTION_PLAN.md`](docs/EXECUTION_PLAN.md) for the full
@@ -233,7 +248,7 @@ code, metrics, and findings — see [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMEN
 
 | Finding | Detail |
 |---|---|
-| Best model R² | **0.8935** (Linear Regression, Ridge, XGBoost Tuned — tied) |
+| Best model R² | **0.8935** (Linear Regression and Ridge — tied) |
 | Leakage fix | Removing `Base Fare` & `Tax & Surcharge` dropped R² from ~1.0 to honest 0.89 |
 | Log₁p transform | Linearised the right-skewed fare distribution (skewness 1.58); enabled linear models to match ensemble methods |
 | Winter fare premium | **+16.2%** over Autumn — December–February is the highest-demand window |
@@ -241,18 +256,19 @@ code, metrics, and findings — see [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMEN
 | Most expensive route | SPD → BKK: 117,952 BDT average |
 | Dataset quality | 57,000 records — zero missing values, zero duplicates |
 
-### Final Model Ranking (Airflow DAG run — log₁p-scale metrics)
+### Final Model Ranking (pipeline run — log₁p-scale metrics)
+
+> **Note:** XGBoost requires a separate `pip install xgboost` and was not present
+> in this environment. All other models ran to completion.
 
 | Rank | Model | R² | MAE | RMSE |
 |---|---|---|---|---|
 | 1 | Linear Regression | **0.8935** | 0.35 | 0.46 |
 | 1 | Ridge | **0.8935** | 0.35 | 0.46 |
-| 1 | XGBoost (Tuned) | **0.8935** | 0.35 | 0.46 |
-| 4 | Random Forest (Tuned) | 0.8932 | 0.35 | 0.46 |
-| 5 | Lasso | 0.8931 | 0.35 | 0.46 |
-| 6 | Random Forest | 0.8878 | 0.36 | 0.47 |
-| 7 | XGBoost | 0.8876 | 0.36 | 0.47 |
-| 8 | Decision Tree | 0.7812 | 0.48 | 0.66 |
+| 3 | Random Forest (Tuned) | 0.8932 | 0.35 | 0.46 |
+| 4 | Lasso | 0.8931 | 0.35 | 0.46 |
+| 5 | Random Forest | 0.8878 | 0.36 | 0.47 |
+| 6 | Decision Tree | 0.778 | 0.48 | 0.66 |
 
 ---
 
@@ -285,7 +301,7 @@ code, metrics, and findings — see [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMEN
 | 2 | `clean_and_preprocess` | `02_data_cleaning_preprocessing` | Impute, fix types, engineer date features, remove leakage columns, apply `log1p` transform, one-hot encode, StandardScale, 80/20 split |
 | 3 | `generate_eda_report` | `03_exploratory_data_analysis` | Statistical summaries, 4 visualisations, KPI JSON (airline fares, popular routes, seasonal trends) |
 | 4 | `train_baseline_model` | `04_baseline_model_development` | Linear Regression baseline — R²=0.8935 on log-scale target |
-| 5 | `train_advanced_models` | `05_advanced_modeling_optimization` | Ridge, Lasso, Decision Tree, Random Forest, XGBoost; RandomizedSearchCV tuning; bias–variance analysis |
+| 5 | `train_advanced_models` | `05_advanced_modeling_optimization` | Ridge, Lasso, Decision Tree, Random Forest (+ XGBoost when installed); RandomizedSearchCV tuning; bias–variance analysis; versioned model save |
 | 6 | `interpret_and_report` | `06_model_interpretation_insights` | Airline coefficients, seasonal/route importance, stakeholder summary, leakage documentation |
 
 ---
@@ -302,12 +318,14 @@ code, metrics, and findings — see [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMEN
 
 - Python 3.11 | pandas | NumPy | scikit-learn
 - Matplotlib | Seaborn | Plotly
-- XGBoost | LightGBM
+- XGBoost (optional) | LightGBM
 - Jupyter Notebook
 - Docker & Docker Compose
 - Apache Airflow 2.8 (pipeline orchestration & scheduled retraining)
 - PostgreSQL 15 (Airflow metadata backend)
-- Flask (REST API) | Streamlit (Web App)
+- Flask | flask-limiter | flasgger (REST API + rate limiting + Swagger UI)
+- Streamlit (Web App)
+- pytest (automated test suite — 51 tests)
 
 ---
 

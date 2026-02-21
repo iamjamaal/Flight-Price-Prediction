@@ -190,14 +190,30 @@ pipeline artifacts listed; retraining schedule explained.
 ---
 
 ## Phase 8 (Stretch): Flask API Deployment
-**Status:** 🟡 Code Written (not yet tested)
+**Status:** 🟢 Complete
 **Estimated effort:** 1 session
 **Deliverables:**
-- [x] Flask app in `app/app.py` with `/predict` and `/health` endpoints
-- [x] Input validation and error handling
+- [x] Flask app in `app/app.py` with `/predict`, `/health`, and `/` endpoints
+- [x] Input validation against `known_values.json` (24 airlines, 8 sources, 20 destinations)
 - [x] Scaler and feature alignment for inference
-- [ ] Docker service running (`docker compose --profile api up api`)
-- [ ] API tested with sample request
+- [x] Rate limiting — 30 requests/minute per IP via `flask-limiter`
+- [x] Debug mode via `FLASK_DEBUG` env var (off by default)
+- [x] API tested with sample request (curl + pytest fixtures)
+- [x] Docker service runnable via `docker compose --profile api up api`
+
+---
+
+## Phase 9: Production Readiness
+**Status:** 🟢 Complete
+**Estimated effort:** 1 session
+**Deliverables:**
+- [x] `src/constants.py` — centralized `SEASON_MAP`, `SEASON_ORDER`, `CITY_NAME_ALIASES`
+- [x] `save_model_versioned()` in `src/models.py` — timestamped model archive
+- [x] `models/model_registry.json` — JSON audit log of every trained model
+- [x] `data/processed/known_values.json` — categorical domain values for API validation
+- [x] Swagger UI at `GET /apidocs/` (YAML docstrings on all 3 routes via `flasgger`)
+- [x] pytest suite — 51 tests, 0 disk I/O, ~6 seconds
+- [x] Pipeline re-run confirmed: R²=0.8935, all metrics identical post-refactor
 
 ---
 
@@ -207,13 +223,11 @@ pipeline artifacts listed; retraining schedule explained.
 |-------|--------|-------|
 | 0 — Setup | 🟢 Complete | Docker images built; Airflow running on port 8081 |
 | 1 — Problem & Data | 🟢 Complete | Notebook 01 executed; Airflow task green |
-| 2 — Cleaning | 🟢 Complete | Leakage fix + log-transform applied; Airflow task green |
+| 2 — Cleaning | 🟢 Complete | Leakage fix + log-transform applied; known_values.json saved |
 | 3 — EDA | 🟢 Complete | Figures generated; KPIs computed; Airflow task green |
-| 4 — Baseline Model | 🟢 Complete | LR baseline trained; metrics saved; Airflow task green |
-| 5 — Advanced Models | 🟢 Complete | 8 models compared; best model saved; Airflow task green |
+| 4 — Baseline Model | 🟢 Complete | LR baseline trained; R²=0.8935 |
+| 5 — Advanced Models | 🟢 Complete | 6 models compared; best_model versioned + registry updated |
 | 6 — Interpretation | 🟢 Complete | Feature importance, business insights documented |
 | 7 — Airflow Pipeline | 🟢 Complete | Full DAG runs end-to-end; weekly schedule active |
-| 8 — Flask API | 🟡 Code Written | app.py ready; not yet tested |
-
-> **Next milestone:** Execute notebooks 03–06 in Jupyter for visible outputs,
-> test the Flask API, and make final commit.
+| 8 — Flask API | 🟢 Complete | Rate limiting, Swagger UI, input validation, debug mode fixed |
+| 9 — Production Readiness | 🟢 Complete | Constants centralized, model versioning, pytest suite (51 tests) |
