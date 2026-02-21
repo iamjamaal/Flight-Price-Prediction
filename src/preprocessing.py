@@ -11,6 +11,8 @@ import pandas as pd
 import numpy as np
 from typing import Optional
 
+from src.constants import CITY_NAME_ALIASES
+
 
 # Maps raw dataset column names to the standardised names used throughout
 # the pipeline.  Keys that don't appear in a given DataFrame are silently
@@ -158,15 +160,10 @@ def fix_invalid_entries(df: pd.DataFrame) -> pd.DataFrame:
     for col in str_cols:
         df[col] = df[col].str.strip()
 
-    # Normalize common city name variants (extend as needed)
-    city_map = {
-        "Dacca": "Dhaka",
-        "Chattogram": "Chittagong",
-        "Chottogram": "Chittagong",
-    }
+    # Normalize common city name variants
     for col in ("Source", "Destination"):
         if col in df.columns:
-            df[col] = df[col].replace(city_map)
+            df[col] = df[col].replace(CITY_NAME_ALIASES)
 
     # Remove rows with negative fare values
     fare_cols = [c for c in df.columns if "fare" in c.lower()]

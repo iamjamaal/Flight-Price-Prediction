@@ -14,6 +14,8 @@ from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
+from src.constants import SEASON_MAP
+
 
 
 
@@ -43,14 +45,7 @@ def create_date_features(df: pd.DataFrame, date_col: str = "Date") -> pd.DataFra
     df["WeekdayName"] = dt.dt.day_name()
 
 
-    # Season mapping for Bangladesh climate
-    season_map = {
-        12: "Winter", 1: "Winter", 2: "Winter",
-        3: "Summer", 4: "Summer", 5: "Summer",
-        6: "Monsoon", 7: "Monsoon", 8: "Monsoon",
-        9: "Autumn", 10: "Autumn", 11: "Autumn",
-    }
-    df["Season"] = df["Month"].map(season_map)
+    df["Season"] = df["Month"].map(SEASON_MAP)
 
     print(f"Created date features: Month, Day, Weekday, WeekdayName, Season")
     return df

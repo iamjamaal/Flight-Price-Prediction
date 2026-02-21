@@ -21,6 +21,7 @@ from src.feature_engineering import (
     align_features,
     load_scaler,
 )
+from src.constants import SEASON_MAP
 
 
 
@@ -296,14 +297,7 @@ def predict_fare(airline, source, destination, travel_date, travel_class,
     
     
 
-    # Season mapping for Bangladesh climate
-    season_map = {
-        12: "Winter", 1: "Winter", 2: "Winter",
-        3: "Summer", 4: "Summer", 5: "Summer",
-        6: "Monsoon", 7: "Monsoon", 8: "Monsoon",
-        9: "Autumn", 10: "Autumn", 11: "Autumn",
-    }
-    season = season_map[month]
+    season = SEASON_MAP[month]
     
     
     
