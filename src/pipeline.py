@@ -124,6 +124,18 @@ def clean_and_preprocess(**context):
     df_model["Total Fare"] = np.log1p(df_model["Total Fare"])
     logger.info("Applied log1p transform to Total Fare (skew reduction)")
 
+    # Save distinct categorical values for API input validation (before encoding)
+    _kv_cols = ["Airline", "Source", "Destination", "Stopovers", "Class"]
+    known_values = {
+        col: sorted(df_model[col].dropna().astype(str).unique().tolist())
+        for col in _kv_cols
+        if col in df_model.columns
+    }
+    (DATA_PROCESSED / "known_values.json").write_text(
+        json.dumps(known_values, indent=2), encoding="utf-8"
+    )
+    logger.info("Saved known_values.json with %d categories", len(known_values))
+
     df_encoded = encode_categoricals(df_model.copy())
     df_scaled, scaler = scale_numericals(df_encoded.copy())
 
@@ -269,7 +281,7 @@ def train_advanced_models(**context):
     import matplotlib.pyplot as plt
     from sklearn.linear_model import Ridge, Lasso
     from sklearn.metrics import r2_score
-    from src.models import train_model, tune_model, save_model
+    from src.models import train_model, tune_model, save_model, save_model_versioned
     from src.evaluation import (
         evaluate_model,
         print_metrics,
@@ -363,7 +375,17 @@ def train_advanced_models(**context):
 
     # --- Select and save best ---
     best_name = comparison.iloc[0]["Model"]
-    save_model(trained[best_name], str(MODELS_DIR / "best_model.joblib"))
+    best_metrics = {
+        "r2": float(comparison.iloc[0]["R²"]),
+        "mae": float(comparison.iloc[0]["MAE"]),
+        "rmse": float(comparison.iloc[0]["RMSE"]),
+    }
+    save_model_versioned(
+        trained[best_name],
+        model_name="best_model",
+        metrics=best_metrics,
+        models_dir=MODELS_DIR,
+    )
     logger.info(
         "Phase 5 complete — best model: %s (R²=%.4f)",
         best_name, comparison.iloc[0]["R²"],

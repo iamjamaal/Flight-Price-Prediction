@@ -5,6 +5,8 @@ Model training, hyperparameter tuning, serialization, and loading.
 Used in Phases 4 and 5 (Baseline + Advanced Modeling).
 """
 
+import datetime
+import json
 import warnings
 
 warnings.filterwarnings("ignore", message="Loky-backed parallel loops")
@@ -142,6 +144,59 @@ def save_model(model, path: str | Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, path)
     print(f"Model saved -> {path}")
+
+
+def save_model_versioned(
+    model,
+    model_name: str,
+    metrics: dict,
+    models_dir: str | Path,
+) -> None:
+    """
+    Save a versioned copy of the model and update the model registry.
+
+    Saves:
+    - models/<model_name>_v<YYYYMMDD_HHMMSS>.joblib  (timestamped copy)
+    - models/<model_name>.joblib                      (canonical alias, backward compat)
+    - models/model_registry.json                      (appended with new entry)
+
+    Parameters
+    ----------
+    model : fitted estimator
+    model_name : str
+    metrics : dict
+        e.g. {"r2": 0.95, "mae": 320.5, "rmse": 510.2}
+    models_dir : str or Path
+    """
+    models_dir = Path(models_dir)
+    models_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    versioned_path = models_dir / f"{model_name}_v{timestamp}.joblib"
+    canonical_path = models_dir / f"{model_name}.joblib"
+
+    joblib.dump(model, versioned_path)
+    print(f"Model saved (versioned)  -> {versioned_path}")
+
+    joblib.dump(model, canonical_path)
+    print(f"Model saved (canonical)  -> {canonical_path}")
+
+    registry_path = models_dir / "model_registry.json"
+    registry: list = []
+    if registry_path.exists():
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+
+    entry = {
+        "version": timestamp,
+        "model_name": model_name,
+        "versioned_path": str(versioned_path),
+        "canonical_path": str(canonical_path),
+        "metrics": metrics,
+        "timestamp": datetime.datetime.now().isoformat(),
+    }
+    registry.append(entry)
+    registry_path.write_text(json.dumps(registry, indent=2), encoding="utf-8")
+    print(f"Registry updated         -> {registry_path}")
 
 
 def load_model(path: str | Path):
