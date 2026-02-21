@@ -109,7 +109,7 @@ This starts PostgreSQL, the Airflow webserver, and the scheduler.
 1. Open **http://localhost:8081** in your browser
 2. Log in with `admin` / `admin`
 3. Find the **`flight_fare_prediction`** DAG (already active by default)
-4. Click **Trigger DAG** (▶) to run the full pipeline
+4. Click **Trigger DAG**  to run the full pipeline
 
 ### 5. Monitor progress
 Switch to **Graph** view in the Airflow UI to watch tasks execute:
@@ -329,7 +329,4 @@ code, metrics, and findings — see [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMEN
 
 ---
 
-## License
 
-This project is developed for educational purposes as part of the
-AmaliTech DEM09 Data Science Module Lab.
