@@ -135,7 +135,7 @@ Open your browser at **http://localhost:8888** — no token required.
 
 ---
 
-## Optional: Streamlit Web App (Stretch)
+## Optional: Streamlit Web App 
 
 After the Airflow pipeline has produced a trained model, launch the interactive
 Streamlit web application:
@@ -159,7 +159,7 @@ streamlit run app/streamlit_app.py
 
 ---
 
-## Optional: Flask REST API (Stretch)
+## Optional: Flask REST API 
 
 For programmatic access, use the Flask REST API:
 
