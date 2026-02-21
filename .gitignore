@@ -41,3 +41,4 @@ reports/figures/
 # Notebook-generated artifacts (from interactive runs)
 notebooks/data/
 notebooks/reports/
+.claude
