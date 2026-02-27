@@ -244,6 +244,9 @@ def train_baseline_model(**context):
     model = train_model("linear_regression", X_train, y_train)
     metrics = evaluate_model(model, X_test, y_test)
     print_metrics(metrics)
+    bdt = _eval_bdt(model, X_test, y_test)
+    print(f"  MAE  (BDT) = {bdt['mae']:,.0f}")
+    print(f"  RMSE (BDT) = {bdt['rmse']:,.0f}")
 
     plot_actual_vs_predicted(
         y_test, metrics["predictions"],
@@ -259,16 +262,19 @@ def train_baseline_model(**context):
     save_model(model, str(MODELS_DIR / "linear_regression_baseline.joblib"))
 
     baseline = {
-        "r2": round(metrics["r2"], 4),
-        "mae": round(metrics["mae"], 2),
-        "rmse": round(metrics["rmse"], 2),
+        "r2_log": round(metrics["r2"], 4),
+        "mae_log": round(metrics["mae"], 4),
+        "rmse_log": round(metrics["rmse"], 4),
+        "r2_bdt": round(bdt["r2"], 4),
+        "mae_bdt": round(bdt["mae"], 2),
+        "rmse_bdt": round(bdt["rmse"], 2),
     }
     (DATA_PROCESSED / "baseline_metrics.json").write_text(
         json.dumps(baseline, indent=2)
     )
     logger.info(
-        "Phase 4 complete — R²=%.4f  MAE=%.2f  RMSE=%.2f",
-        metrics["r2"], metrics["mae"], metrics["rmse"],
+        "Phase 4 complete — R²=%.4f  MAE_log=%.4f  MAE_BDT=%.0f  RMSE_BDT=%.0f",
+        metrics["r2"], metrics["mae"], bdt["mae"], bdt["rmse"],
     )
 
 
@@ -300,7 +306,7 @@ def train_advanced_models(**context):
     # --- Base models ---
     model_names = [
         "linear_regression", "ridge", "lasso",
-        "decision_tree", "random_forest",
+        "decision_tree", "random_forest", "gradient_boosting",
     ]
     trained = {}
     results = {}
@@ -335,8 +341,17 @@ def train_advanced_models(**context):
             cross_validate_model(trained[name], X_train, y_train, cv=5)
             
 
+    # --- BDT-scale metrics (inverse log1p for interpretability) ---
+    bdt_results = {name: _eval_bdt(m, X_test, y_test) for name, m in trained.items()}
+
     # --- Comparison table ---
     comparison = build_comparison_table(results)
+    comparison["MAE (BDT)"] = comparison["Model"].map(
+        {n: round(r["mae"], 2) for n, r in bdt_results.items()}
+    )
+    comparison["RMSE (BDT)"] = comparison["Model"].map(
+        {n: round(r["rmse"], 2) for n, r in bdt_results.items()}
+    )
     comparison.to_csv(DATA_PROCESSED / "model_comparison.csv", index=False)
     
     
@@ -376,9 +391,12 @@ def train_advanced_models(**context):
     # --- Select and save best ---
     best_name = comparison.iloc[0]["Model"]
     best_metrics = {
-        "r2": float(comparison.iloc[0]["R²"]),
-        "mae": float(comparison.iloc[0]["MAE"]),
-        "rmse": float(comparison.iloc[0]["RMSE"]),
+        "r2_log": float(comparison.iloc[0]["R²"]),
+        "mae_log": float(comparison.iloc[0]["MAE"]),
+        "rmse_log": float(comparison.iloc[0]["RMSE"]),
+        "r2_bdt": round(bdt_results[best_name]["r2"], 4),
+        "mae_bdt": round(bdt_results[best_name]["mae"], 2),
+        "rmse_bdt": round(bdt_results[best_name]["rmse"], 2),
     }
     save_model_versioned(
         trained[best_name],
@@ -387,8 +405,9 @@ def train_advanced_models(**context):
         models_dir=MODELS_DIR,
     )
     logger.info(
-        "Phase 5 complete — best model: %s (R²=%.4f)",
+        "Phase 5 complete — best model: %s  R²=%.4f  MAE_BDT=%.0f  RMSE_BDT=%.0f",
         best_name, comparison.iloc[0]["R²"],
+        bdt_results[best_name]["mae"], bdt_results[best_name]["rmse"],
     )
 
 

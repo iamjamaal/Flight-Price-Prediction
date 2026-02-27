@@ -600,16 +600,20 @@ with st.expander("Model Performance Metrics"):
         with col1:
             st.metric("Best Model", best["Model"].replace("_", " ").title())
         with col2:
-            st.metric("Accuracy (R2)", f"{best[r2_col]:.1%}")
+            st.metric("Accuracy (R²)", f"{best[r2_col]:.1%}")
         with col3:
-            st.metric("Error Rate (MAE)", f"{best['MAE']:.2f}")
+            if "MAE (BDT)" in model_df.columns:
+                st.metric("Avg Error (MAE)", f"৳{best['MAE (BDT)']:,.0f} BDT")
+            else:
+                st.metric("Error Rate (MAE)", f"{best['MAE']:.4f}")
 
+        fmt = {r2_col: "{:.4f}", "MAE": "{:.4f}", "RMSE": "{:.4f}"}
+        if "MAE (BDT)" in model_df.columns:
+            fmt["MAE (BDT)"] = "{:,.0f}"
+        if "RMSE (BDT)" in model_df.columns:
+            fmt["RMSE (BDT)"] = "{:,.0f}"
         st.dataframe(
-            model_df.style.format({
-                r2_col: "{:.4f}",
-                "MAE": "{:.2f}",
-                "RMSE": "{:.2f}"
-            }),
+            model_df.style.format(fmt),
             use_container_width=True,
             hide_index=True
         )

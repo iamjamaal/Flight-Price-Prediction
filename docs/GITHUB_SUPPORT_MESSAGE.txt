@@ -1,0 +1,11 @@
+Subject: Refresh contributors list for repository after history rewrite
+
+Hello,
+
+I rewrote the git history of my repository to remove Co-authored-by trailers and correct commit authors. The history on the remote is now correct (only one author), but the repository's Contributors section still shows old contributors (Claude, Cursor Agent) from before the rewrite.
+
+Repository: https://github.com/iamjamaal/Flight-Price-Prediction
+
+Could you please refresh or rebuild the contributors data for this repository so it reflects the current commit history?
+
+Thank you.
