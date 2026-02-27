@@ -131,7 +131,7 @@ For exploring data or running notebook cells interactively:
 ```bash
 docker compose up notebook
 ```
-Open your browser at **http://localhost:8888** — no token required.
+Open your browser at **http://localhost:8888**  no token required.
 
 ---
 
@@ -177,9 +177,9 @@ curl -X POST http://localhost:5000/predict \
 ```
 
 **API features:**
-- `POST /predict` — fare prediction with input validation against known training values (400 if unknown airline/route)
-- `GET /health` — health check
-- `GET /apidocs/` — interactive Swagger UI (OpenAPI 2.0)
+- `POST /predict` fare prediction with input validation against known training values (400 if unknown airline/route)
+- `GET /health` health check
+- `GET /apidocs/` interactive Swagger UI (OpenAPI 2.0)
 - Rate limited to **30 requests/minute** per IP (in-memory, no Redis required)
 - Debug mode controlled by `FLASK_DEBUG` environment variable (off by default)
 
@@ -208,11 +208,11 @@ interpret_and_report
 ### Key Design Decisions
 
 - **PythonOperator tasks** call functions in `src/pipeline.py`, which in
-  turn call the existing `src/` modules — no code duplication.
+  turn call the existing `src/` modules  no code duplication.
 - **Headless matplotlib** (`Agg` backend) so figures render without a display.
 - **File-based communication** between tasks (`data/processed/`, `models/`,
-  `reports/figures/`) — no XCom size limits.
-- **Idempotent tasks** — every run safely overwrites previous outputs.
+  `reports/figures/`) no XCom size limits.
+- **Idempotent tasks**  every run safely overwrites previous outputs.
 - **`@weekly` schedule** with `catchup=False` for rolling retraining.
 
 ### Pipeline Artifacts
@@ -239,8 +239,8 @@ After a successful DAG run, these outputs are produced:
 See [`docs/EXECUTION_PLAN.md`](docs/EXECUTION_PLAN.md) for the full
 step-by-step guide including troubleshooting.
 
-For a detailed writeup of how each project step was implemented — including
-code, metrics, and findings — see [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMENTATION.md).
+For a detailed writeup of how each project step was implemented including
+code, metrics, and findings, see [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMENTATION.md).
 
 ---
 
@@ -251,10 +251,10 @@ code, metrics, and findings — see [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMEN
 | Best model R² | **0.8935** (Linear Regression and Ridge — tied) |
 | Leakage fix | Removing `Base Fare` & `Tax & Surcharge` dropped R² from ~1.0 to honest 0.89 |
 | Log₁p transform | Linearised the right-skewed fare distribution (skewness 1.58); enabled linear models to match ensemble methods |
-| Winter fare premium | **+16.2%** over Autumn — December–February is the highest-demand window |
+| Winter fare premium | **+16.2%** over Autumn: December–February is the highest-demand window |
 | Airline spread | ~7,400 BDT between most expensive (IndiGo) and cheapest (Vistara) carriers |
 | Most expensive route | SPD → BKK: 117,952 BDT average |
-| Dataset quality | 57,000 records — zero missing values, zero duplicates |
+| Dataset quality | 57,000 records with zero missing values, zero duplicates |
 
 ### Final Model Ranking (pipeline run — log₁p-scale metrics)
 
@@ -308,9 +308,9 @@ code, metrics, and findings — see [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMEN
 
 ## Evaluation Metrics
 
-- **R² (Coefficient of Determination)** — proportion of variance explained
+- **R² (Coefficient of Determination)**  proportion of variance explained
 - **MAE (Mean Absolute Error)** — average absolute prediction error
-- **RMSE (Root Mean Squared Error)** — penalizes large errors more heavily
+- **RMSE (Root Mean Squared Error)** penalizes large errors more heavily
 
 ---
 
