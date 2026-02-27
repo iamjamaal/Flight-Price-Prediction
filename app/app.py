@@ -1,6 +1,5 @@
 """
 app.py
-======
 Flask REST API for flight fare prediction (Stretch Challenge — Phase 8).
 
 Endpoints:
@@ -16,6 +15,7 @@ Usage:
          -H "Content-Type: application/json" \\
          -d '{"airline":"Biman Bangladesh Airlines","source":"DAC","destination":"CGP","date":"2026-03-15"}'
 """
+
 
 import json
 import os
@@ -37,10 +37,10 @@ from src.constants import SEASON_MAP
 
 app = Flask(__name__)
 
-# ── Rate limiting (in-memory; no Redis required) ──────────────────────────────
+# Rate limiting (in-memory; no Redis required)
 limiter = Limiter(get_remote_address, app=app, storage_uri="memory://")
 
-# ── Swagger / OpenAPI docs ─────────────────────────────────────────────────────
+# Swagger
 swagger = Swagger(
     app,
     config={
@@ -67,12 +67,13 @@ swagger = Swagger(
     },
 )
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
+
+# Paths 
 MODEL_PATH = Path("models/best_model.joblib")
 TRAIN_COLUMNS_PATH = Path("data/processed/train_columns.json")
 KNOWN_VALUES_PATH = Path("data/processed/known_values.json")
 
-# ── Lazy-loaded globals ───────────────────────────────────────────────────────
+# Lazy-loaded globals
 model = None
 training_columns = None
 scaler = None
@@ -115,7 +116,7 @@ def get_known_values():
     return _known_values or None
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# Routes 
 
 @app.route("/", methods=["GET"])
 def index():

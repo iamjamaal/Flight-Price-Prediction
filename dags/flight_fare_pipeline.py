@@ -1,6 +1,5 @@
 """
 flight_fare_pipeline.py
-=======================
 Airflow DAG that orchestrates the end-to-end flight fare prediction
 ML pipeline from data ingestion through model interpretation.
 

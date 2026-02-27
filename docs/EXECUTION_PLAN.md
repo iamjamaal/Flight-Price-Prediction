@@ -669,7 +669,7 @@ This starts:
 1. Navigate to **[http://localhost:8081](http://localhost:8081)**
 2. Log in with `admin` / `admin`
 3. Find the **flight_fare_prediction** DAG
-4. The DAG is unpaused by default — click **Trigger DAG** (▶) to run
+4. The DAG is unpaused by default — click **Trigger DAG**  to run
   immediately, or wait for the weekly schedule
 
 ### 7.5 Monitor a Pipeline Run

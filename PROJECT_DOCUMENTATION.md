@@ -506,13 +506,6 @@ def tune_model(name, X_train, y_train, cv=3, n_iter=10, scoring="r2"):
 
 **Best Random Forest params:** `n_estimators=100`, `max_depth=10`, `min_samples_split=5`, `min_samples_leaf=1` — CV R²=0.8918
 
-**XGBoost search space** (requires `pip install xgboost`; skipped gracefully if absent):
-- `n_estimators`: [100, 200, 300]
-- `max_depth`: [3, 5, 7, 10]
-- `learning_rate`: [0.01, 0.05, 0.1, 0.2]
-- `subsample`: [0.7, 0.8, 1.0]
-
-**Best XGBoost params:** `n_estimators=100`, `max_depth=5`, `learning_rate=0.1`, `subsample=0.8` — CV R²=0.8923
 
 ### Model Evaluation Results
 
@@ -526,7 +519,7 @@ def tune_model(name, X_train, y_train, cv=3, n_iter=10, scoring="r2"):
 | 6 | Decision Tree | 0.778 | 0.48 | 0.66 |
 
 *All metrics on log₁p-transformed target. Results saved to `data/processed/model_comparison.csv`.*
-*XGBoost requires `pip install xgboost` and was not available in this run.*
+
 
 **Best model:** Linear Regression / Ridge (tied at R²=0.8935). `models/best_model.joblib` (canonical alias) and `models/best_model_v<timestamp>.joblib` (versioned archive) saved to disk. `models/model_registry.json` updated with metrics and timestamp.
 
