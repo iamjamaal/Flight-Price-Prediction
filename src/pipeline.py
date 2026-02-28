@@ -293,6 +293,7 @@ def train_advanced_models(**context):
         print_metrics,
         cross_validate_model,
         build_comparison_table,
+        select_best_model,
     )
 
     _ensure_dirs()
@@ -335,9 +336,10 @@ def train_advanced_models(**context):
         trained["xgboost_tuned"] = best_xgb
 
 
-    # --- Cross-validation for some models ---
-    for name in ["ridge", "random_forest"]:
+    # --- Cross-validation for key models (base + tuned) ---
+    for name in ["ridge", "random_forest_tuned", "xgboost_tuned"]:
         if name in trained:
+            logger.info("Cross-validating: %s", name)
             cross_validate_model(trained[name], X_train, y_train, cv=5)
             
 
@@ -388,15 +390,22 @@ def train_advanced_models(**context):
     
     
 
-    # --- Select and save best ---
-    best_name = comparison.iloc[0]["Model"]
+    # --- Select and save best (dynamic: lowest BDT MAE) ---
+    best_name, criterion = select_best_model(comparison)
+    best_row = comparison[comparison["Model"] == best_name].iloc[0]
+    logger.info(
+        "Model selected: %s  (criterion: %s)  R²=%.4f  MAE(BDT)=%.0f",
+        best_name, criterion, best_row["R²"], bdt_results[best_name]["mae"],
+    )
     best_metrics = {
-        "r2_log": float(comparison.iloc[0]["R²"]),
-        "mae_log": float(comparison.iloc[0]["MAE"]),
-        "rmse_log": float(comparison.iloc[0]["RMSE"]),
+        "r2_log": float(best_row["R²"]),
+        "mae_log": float(best_row["MAE"]),
+        "rmse_log": float(best_row["RMSE"]),
         "r2_bdt": round(bdt_results[best_name]["r2"], 4),
         "mae_bdt": round(bdt_results[best_name]["mae"], 2),
         "rmse_bdt": round(bdt_results[best_name]["rmse"], 2),
+        "selection_criterion": criterion,
+        "selected_model_name": best_name,
     }
     save_model_versioned(
         trained[best_name],
@@ -406,7 +415,7 @@ def train_advanced_models(**context):
     )
     logger.info(
         "Phase 5 complete — best model: %s  R²=%.4f  MAE_BDT=%.0f  RMSE_BDT=%.0f",
-        best_name, comparison.iloc[0]["R²"],
+        best_name, best_row["R²"],
         bdt_results[best_name]["mae"], bdt_results[best_name]["rmse"],
     )
 

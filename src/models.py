@@ -38,9 +38,9 @@ MODEL_REGISTRY = {
     "ridge": lambda: Ridge(alpha=1.0),
     "lasso": lambda: Lasso(alpha=0.001, max_iter=50_000),
     "decision_tree": lambda: DecisionTreeRegressor(random_state=42),
-    "random_forest": lambda: RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=1),
+    "random_forest": lambda: RandomForestRegressor(n_estimators=50, random_state=42, n_jobs=1),
     "gradient_boosting": lambda: GradientBoostingRegressor(n_estimators=20, random_state=42),
-    "xgboost": lambda: _get_xgboost()(n_estimators=100, random_state=42, n_jobs=1),
+    "xgboost": lambda: _get_xgboost()(n_estimators=50, random_state=42, n_jobs=1),
 }
 
 
@@ -55,19 +55,19 @@ PARAM_GRIDS = {
         "min_samples_leaf": [1, 2, 4],
     },
     "random_forest": {
-        "n_estimators": [50, 100, 200, 300],
+        "n_estimators": [20, 50, 100],
         "max_depth": [10, 15, 20, None],
         "min_samples_split": [2, 5],
         "min_samples_leaf": [1, 2],
     },
     "gradient_boosting": {
-        "n_estimators": [100, 200, 300],
+        "n_estimators": [20, 50, 100],
         "max_depth": [3, 5, 7],
         "learning_rate": [0.05, 0.1, 0.2],
         "subsample": [0.8, 1.0],
     },
     "xgboost": {
-        "n_estimators": [100, 200, 300],
+        "n_estimators": [20, 50, 100],
         "max_depth": [3, 5, 7, 10],
         "learning_rate": [0.01, 0.05, 0.1, 0.2],
         "subsample": [0.7, 0.8, 1.0],

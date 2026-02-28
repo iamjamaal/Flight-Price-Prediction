@@ -102,3 +102,32 @@ def build_comparison_table(results: dict[str, dict]) -> pd.DataFrame:
         })
     df = pd.DataFrame(rows).sort_values("R²", ascending=False).reset_index(drop=True)
     return df
+
+
+def select_best_model(comparison: pd.DataFrame) -> tuple[str, str]:
+    """
+    Select the best model from the comparison table dynamically.
+
+    Primary criterion  : lowest MAE (BDT) — most business-meaningful metric,
+                         directly interpretable as average prediction error in
+                         Bangladeshi Taka.
+    Fallback criterion : highest R² (log-scale) — used when BDT MAE column is
+                         absent or entirely NaN.
+
+    Parameters
+    ----------
+    comparison : pd.DataFrame
+        Output of build_comparison_table(), optionally enriched with a
+        "MAE (BDT)" column from inverse-transformed predictions.
+
+    Returns
+    -------
+    tuple[str, str]
+        (model_name, criterion_used) — criterion_used describes why the model
+        was chosen, enabling downstream logging and registry documentation.
+    """
+    if "MAE (BDT)" in comparison.columns and comparison["MAE (BDT)"].notna().any():
+        idx = comparison["MAE (BDT)"].idxmin()
+        return comparison.loc[idx, "Model"], "BDT MAE (lowest)"
+    # Fallback: comparison is already sorted by R² descending
+    return comparison.iloc[0]["Model"], "R² log-scale (highest)"
